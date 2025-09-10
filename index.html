@@ -62,7 +62,6 @@
         <div id="todoList"></div>
       </div>
 
-      <button onclick="clearData()" style="background:#ff9800;">Hapus Data Lokal</button>
       <button onclick="logout()" style="background:#f44336;">Keluar</button>
     </div>
   </div>
@@ -71,39 +70,23 @@
     let peer, conn, connections = [];
     let userName = "", roomId = "", role = "";
 
-    // === STORAGE ===
-    function getSaved() {
-      return JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
-    }
-    function saveData(todos) {
-      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
-    }
-    function clearData() {
-      localStorage.removeItem("todos-" + roomId);
-      document.getElementById("todoList").innerHTML = "";
-      alert("Data lokal dihapus!");
+    // === SESSION ===
+    function saveSession() {
+      localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
     }
 
-    function addToStorage(todo) {
-      const todos = getSaved();
-      todos.push({ ...todo, comments: [] });
-      saveData(todos);
+    function clearSession() {
+      localStorage.removeItem("session");
     }
-    function addCommentToStorage(todoId, msg) {
-      const todos = getSaved();
-      const t = todos.find(x => x.id == todoId);
-      if (t) {
-        t.comments.push(msg);
-        saveData(todos);
+
+    function loadSession() {
+      const s = JSON.parse(localStorage.getItem("session") || "null");
+      if (s) {
+        userName = s.userName;
+        roomId = s.roomId;
+        role = s.role;
+        reconnectSession();
       }
-    }
-
-    function loadData() {
-      const todos = getSaved();
-      todos.forEach(t => {
-        renderTodo(t);
-        if (t.comments) t.comments.forEach(c => appendComment(c));
-      });
     }
 
     // === AUTH ===
@@ -117,6 +100,7 @@
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
+        saveSession();
         loadData();
         peer.on("connection", c => {
           connections.push(c);
@@ -136,10 +120,38 @@
         conn.on("open", () => {
           initApp("Room ID: " + roomId, "Member: " + userName);
           document.getElementById("status").className = "status online";
+          saveSession();
           loadData();
           conn.on("data", handleData);
         });
       });
+    }
+
+    function reconnectSession() {
+      if (role === "mentor") {
+        peer = new Peer(roomId);
+        peer.on("open", id => {
+          initApp("Room ID: " + id, "Mentor: " + userName);
+          document.getElementById("status").className = "status online";
+          document.getElementById("addTodoForm").classList.remove("hidden");
+          loadData();
+          peer.on("connection", c => {
+            connections.push(c);
+            c.on("data", handleData);
+          });
+        });
+      } else if (role === "member") {
+        peer = new Peer();
+        peer.on("open", () => {
+          conn = peer.connect(roomId);
+          conn.on("open", () => {
+            initApp("Room ID: " + roomId, "Member: " + userName);
+            document.getElementById("status").className = "status online";
+            loadData();
+            conn.on("data", handleData);
+          });
+        });
+      }
     }
 
     function initApp(title, info) {
@@ -154,10 +166,10 @@
       const title = document.getElementById("todoTitle").value.trim();
       const desc = document.getElementById("todoDesc").value.trim();
       if (!title) return alert("Judul tidak boleh kosong");
-      const todo = { type: "todo", id: Date.now(), title, desc, user: userName, comments: [] };
+      const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
       renderTodo(todo);
-      addToStorage(todo);
       broadcast(todo);
+      saveData();
       document.getElementById("todoTitle").value = "";
       document.getElementById("todoDesc").value = "";
     }
@@ -190,8 +202,8 @@
       if (text) {
         const msg = { type: "comment", todoId, text, user: userName };
         appendComment(msg);
-        addCommentToStorage(todoId, msg);
         broadcast(msg);
+        saveData();
         document.getElementById("commentInput-" + todoId).value = "";
       }
 
@@ -200,8 +212,8 @@
         reader.onload = () => {
           const msg = { type: "photo", todoId, data: reader.result, user: userName };
           appendComment(msg);
-          addCommentToStorage(todoId, msg);
           broadcast(msg);
+          saveData();
         };
         reader.readAsDataURL(file);
         document.getElementById("photoInput-" + todoId).value = "";
@@ -231,11 +243,46 @@
     }
 
     function handleData(data) {
-      if (data.type === "todo") { renderTodo(data); addToStorage(data); }
-      if (data.type === "comment" || data.type === "photo") { appendComment(data); addCommentToStorage(data.todoId, data); }
+      if (data.type === "todo") renderTodo(data);
+      if (data.type === "comment" || data.type === "photo") appendComment(data);
+      saveData();
     }
 
-    function logout() { location.reload(); }
+    // === LOCAL STORAGE ===
+    function saveData() {
+      const todos = [];
+      document.querySelectorAll(".todo-item").forEach(div => {
+        const id = parseInt(div.id.replace("todo-", ""));
+        const title = div.querySelector("strong").innerText;
+        const desc = div.childNodes[2].textContent.trim();
+        const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
+        const comments = [];
+        div.querySelectorAll(".comment").forEach(c => {
+          comments.push(c.innerHTML);
+        });
+        todos.push({ id, title, desc, user, comments });
+      });
+      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
+    }
+
+    function loadData() {
+      const data = JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
+      data.forEach(todo => {
+        renderTodo({ id: todo.id, title: todo.title, desc: todo.desc, user: todo.user });
+        const list = document.querySelector("#comments-" + todo.id + " .comment-list");
+        todo.comments.forEach(html => {
+          const div = document.createElement("div");
+          div.className = "comment";
+          div.innerHTML = html;
+          list.appendChild(div);
+        });
+      });
+    }
+
+    function logout() { clearSession(); location.reload(); }
+
+    // === AUTO LOGIN ===
+    window.onload = loadSession;
   </script>
 </body>
 </html>
