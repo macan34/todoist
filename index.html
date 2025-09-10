@@ -19,11 +19,7 @@
       border-radius: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    h2 {
-      text-align: center;
-      margin-top: 0;
-      font-size: 1.6rem;
-    }
+    h2 { text-align: center; margin-top: 0; }
     .status {
       font-weight: bold;
       margin-bottom: 10px;
@@ -50,10 +46,9 @@
       margin: 5px 2px;
       cursor: pointer;
       transition: background 0.3s;
+      width: 100%;
     }
-    button:hover {
-      background: #45a049;
-    }
+    button:hover { background: #45a049; }
     .todo-item {
       background: #fafafa;
       border: 1px solid #ddd;
@@ -61,10 +56,7 @@
       margin: 10px 0;
       padding: 10px;
     }
-    .todo-meta {
-      font-size: 0.8rem;
-      color: #666;
-    }
+    .todo-meta { font-size: 0.8rem; color: #666; }
     .comment-section {
       margin-top: 10px;
       border-top: 1px solid #ddd;
@@ -82,10 +74,21 @@
       border-radius: 8px;
       margin-top: 5px;
     }
+    #loginCard {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container" id="loginCard">
+    <h2>Masuk Room</h2>
+    <input type="text" id="userName" placeholder="Nama Anda">
+    <button onclick="startAsMentor()">Buat Room (Mentor)</button>
+    <input type="text" id="roomIdInput" placeholder="Masukkan Room ID untuk Join">
+    <button onclick="startAsMember()">Gabung Room (Member)</button>
+  </div>
+
+  <div class="container" id="appCard" style="display:none;">
     <h2>Room Tugas</h2>
     <div id="status" class="status offline">Offline</div>
 
@@ -98,13 +101,14 @@
     </div>
 
     <div id="todo-list"></div>
+    <button style="background:#f44336;" onclick="logout()">Keluar</button>
   </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
 let peer, conn, userName, isMentor = false, roomId;
 
-// === AUTO LOGIN ===
+// === LOGIN ===
 window.addEventListener("load", () => {
   const savedRoom = localStorage.getItem("roomId");
   const savedUser = localStorage.getItem("userName");
@@ -114,44 +118,59 @@ window.addEventListener("load", () => {
     roomId = savedRoom;
     userName = savedUser;
     isMentor = savedMentor;
-    autoJoinRoom();
-  } else {
-    showLoginPopup();
+    startApp();
   }
 });
 
-function showLoginPopup() {
-  const name = prompt("Masukkan nama Anda:");
-  if (!name) return showLoginPopup();
+function startAsMentor() {
+  const name = document.getElementById("userName").value.trim();
+  if (!name) return alert("Isi nama anda!");
   userName = name;
+  isMentor = true;
+  roomId = "room-" + Math.floor(Math.random()*1000);
+  saveLogin();
+  startApp();
+}
 
-  const role = confirm("Apakah Anda Mentor?\nOK = Mentor | Cancel = Member");
-  isMentor = role;
+function startAsMember() {
+  const name = document.getElementById("userName").value.trim();
+  const joinId = document.getElementById("roomIdInput").value.trim();
+  if (!name || !joinId) return alert("Isi nama dan Room ID!");
+  userName = name;
+  isMentor = false;
+  roomId = joinId;
+  saveLogin();
+  startApp();
+}
 
-  roomId = isMentor ? "room-" + Math.floor(Math.random()*1000) : prompt("Masukkan Room ID untuk join:");
-
+function saveLogin() {
   localStorage.setItem("roomId", roomId);
   localStorage.setItem("userName", userName);
   localStorage.setItem("isMentor", isMentor);
+}
 
+function startApp() {
+  document.getElementById("loginCard").style.display = "none";
+  document.getElementById("appCard").style.display = "block";
   initPeer();
 }
 
+// === PEERJS ===
 function initPeer() {
-  peer = new Peer(null, {
-    config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
-  });
-
-  peer.on("open", id => {
+  peer = new Peer(null, { config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }});
+  peer.on("open", () => {
     if (isMentor) {
-      initApp("Room ID: " + roomId, "Mentor: " + userName);
+      document.getElementById("status").innerText = "Room ID: "+roomId+" | Mentor: "+userName;
+      document.getElementById("status").className = "status online";
+      document.getElementById("mentor-panel").style.display = "block";
       loadData();
       peer.on("connection", c => setupConnection(c));
     } else {
       setTimeout(() => {
         conn = peer.connect(roomId);
         conn.on("open", () => {
-          initApp("Room ID: " + roomId, "Member: " + userName);
+          document.getElementById("status").innerText = "Room ID: "+roomId+" | Member: "+userName;
+          document.getElementById("status").className = "status online";
           conn.on("data", handleData);
           loadData();
         });
@@ -160,21 +179,7 @@ function initPeer() {
   });
 }
 
-function autoJoinRoom() {
-  initPeer();
-}
-
-// === APP ===
-function initApp(roomText, userText) {
-  document.getElementById("status").textContent = roomText + " | " + userText;
-  document.getElementById("status").className = "status online";
-  if (isMentor) document.getElementById("mentor-panel").style.display = "block";
-}
-
-function setupConnection(c) {
-  conn = c;
-  conn.on("data", handleData);
-}
+function setupConnection(c) { c.on("data", handleData); conn = c; }
 
 function handleData(msg) {
   if (msg.type === "task") renderTask(msg);
@@ -196,7 +201,7 @@ function addTask() {
 function renderTask(task) {
   const div = document.createElement("div");
   div.className = "todo-item";
-  div.id = "todo-" + task.id;
+  div.id = "todo-"+task.id;
   div.innerHTML = `<strong>${task.title}</strong><br>${task.desc}<div class="todo-meta">oleh ${task.user}</div>
   <div class="comment-section" id="comments-${task.id}">
     <div class="comment-list"></div>
@@ -231,7 +236,7 @@ function sendPhoto(todoId, input) {
 }
 
 function appendComment(msg) {
-  const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
+  const list = document.querySelector("#comments-"+msg.todoId+" .comment-list");
   if (!list) return;
   const div = document.createElement("div");
   div.className = "comment";
@@ -240,7 +245,7 @@ function appendComment(msg) {
   if (msg.type === "comment") {
     div.setAttribute("data-text", msg.text);
     div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-  } else if (msg.type === "photo") {
+  } else {
     div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
   }
   list.appendChild(div);
@@ -248,9 +253,8 @@ function appendComment(msg) {
 
 // === BROADCAST ===
 function broadcast(msg) {
-  if (isMentor) {
-    peer.connections && Object.values(peer.connections).forEach(arr => arr.forEach(c => c.open && c.send(msg)));
-  } else if (conn && conn.open) conn.send(msg);
+  if (isMentor) peer.connections && Object.values(peer.connections).forEach(arr => arr.forEach(c => c.open && c.send(msg)));
+  else if (conn && conn.open) conn.send(msg);
 }
 
 // === DATA STORAGE ===
@@ -299,6 +303,13 @@ function exportData() {
   a.download = roomId + "-data.json";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function logout() {
+  localStorage.removeItem("roomId");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("isMentor");
+  location.reload();
 }
 </script>
 </body>
