@@ -24,10 +24,6 @@
     .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
     .online { background: #4caf50; color: white; }
     .offline { background: #f44336; color: white; }
-    .preview { margin-top: 4px; }
-    .preview img { max-width: 120px; border-radius: 6px; display: block; }
-    #notification { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 14px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; }
-    #notification.show { opacity: 1; }
     @media (max-width:600px){ .container{padding:10px;} }
   </style>
 </head>
@@ -67,51 +63,36 @@
       </div>
 
       <button onclick="logout()" style="background:#f44336;">Keluar</button>
-      <button id="clearDataBtn" class="hidden" style="background:#ff9800;">Hapus Data Lama</button>
     </div>
   </div>
-
-  <div id="notification"></div>
 
   <script>
     let peer, conn, connections = [];
     let userName = "", roomId = "", role = "";
 
-    // === SESSION ===
-    function saveSession() {
-      localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
-    }
-
-    function loadSession() {
-      const s = JSON.parse(localStorage.getItem("session") || "null");
-      if (s) {
-        userName = s.userName;
-        roomId = s.roomId;
-        role = s.role;
-        if (role === "mentor") {
-          createRoom(true);
-        } else if (role === "member") {
-          joinRoom(true);
-        }
-      }
-    }
-
     // === AUTH ===
-    function createRoom(auto=false) {
-      if (!auto) {
-        userName = document.getElementById("userName").value.trim();
-        if (!userName) return alert("Isi nama Anda!");
-        role = "mentor";
-        roomId = "room-" + Math.floor(Math.random() * 10000);
-      }
+    function createRoom() {
+      userName = document.getElementById("userName").value.trim();
+      if (!userName) return alert("Isi nama Anda!");
+      role = "mentor";
+      roomId = "room-" + Math.floor(Math.random() * 10000);
       peer = new Peer(roomId);
       peer.on("open", id => {
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
-        document.getElementById("clearDataBtn").classList.remove("hidden");
-        saveSession();
-        loadData();
+
+        // cek data lama di localStorage
+        let savedTodos = localStorage.getItem("todos");
+        if (savedTodos) {
+          let keep = confirm("Data lama ditemukan. Muat data lama?");
+          if (keep) {
+            JSON.parse(savedTodos).forEach(todo => renderTodo(todo));
+          } else {
+            localStorage.removeItem("todos");
+          }
+        }
+
         peer.on("connection", c => {
           connections.push(c);
           c.on("data", handleData);
@@ -119,21 +100,17 @@
       });
     }
 
-    function joinRoom(auto=false) {
-      if (!auto) {
-        userName = document.getElementById("userName").value.trim();
-        roomId = document.getElementById("roomIdInput").value.trim();
-        if (!userName || !roomId) return alert("Isi nama dan Room ID!");
-        role = "member";
-      }
+    function joinRoom() {
+      userName = document.getElementById("userName").value.trim();
+      roomId = document.getElementById("roomIdInput").value.trim();
+      if (!userName || !roomId) return alert("Isi nama dan Room ID!");
+      role = "member";
       peer = new Peer();
       peer.on("open", () => {
         conn = peer.connect(roomId);
         conn.on("open", () => {
           initApp("Room ID: " + roomId, "Member: " + userName);
           document.getElementById("status").className = "status online";
-          saveSession();
-          loadData();
           conn.on("data", handleData);
         });
       });
@@ -151,10 +128,10 @@
       const title = document.getElementById("todoTitle").value.trim();
       const desc = document.getElementById("todoDesc").value.trim();
       if (!title) return alert("Judul tidak boleh kosong");
-      const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
+      const todo = { type: "todo", id: Date.now(), title, desc, user: userName, comments: [] };
       renderTodo(todo);
+      saveTodos();
       broadcast(todo);
-      saveData();
       document.getElementById("todoTitle").value = "";
       document.getElementById("todoDesc").value = "";
     }
@@ -171,12 +148,16 @@
           <h4>Komentar</h4>
           <div class="comment-list"></div>
           <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
-          <input type="file" id="photoInput-${todo.id}" accept="image/*" onchange="previewPhoto(${todo.id}, event)">
-          <div class="preview" id="preview-${todo.id}"></div>
+          <input type="file" id="photoInput-${todo.id}" accept="image/*">
           <button onclick="sendComment(${todo.id})">Kirim</button>
         </div>
       `;
       document.getElementById("todoList").appendChild(div);
+
+      // render komentar lama kalau ada
+      if (todo.comments) {
+        todo.comments.forEach(c => appendComment(c));
+      }
     }
 
     // === KOMENTAR ===
@@ -188,8 +169,8 @@
       if (text) {
         const msg = { type: "comment", todoId, text, user: userName };
         appendComment(msg);
+        saveTodos();
         broadcast(msg);
-        saveData();
         document.getElementById("commentInput-" + todoId).value = "";
       }
 
@@ -198,12 +179,11 @@
         reader.onload = () => {
           const msg = { type: "photo", todoId, data: reader.result, user: userName };
           appendComment(msg);
+          saveTodos();
           broadcast(msg);
-          saveData();
         };
         reader.readAsDataURL(file);
         document.getElementById("photoInput-" + todoId).value = "";
-        document.getElementById("preview-" + todoId).innerHTML = "";
       }
     }
 
@@ -212,38 +192,23 @@
       if (!list) return;
       const div = document.createElement("div");
       div.className = "comment";
-      div.setAttribute("data-type", msg.type);
-      div.setAttribute("data-user", msg.user);
       if (msg.type === "comment") {
-        div.setAttribute("data-text", msg.text);
         div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
       } else if (msg.type === "photo") {
         div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
       }
       list.appendChild(div);
 
-      if (msg.user !== userName) showNotification(`${msg.user} menambahkan ${msg.type === "comment" ? "komentar" : "foto"}`);
-    }
-
-    function previewPhoto(todoId, e) {
-      const file = e.target.files[0];
-      const preview = document.getElementById("preview-" + todoId);
-      preview.innerHTML = "";
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          preview.innerHTML = `<img src="${reader.result}">`;
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    // === NOTIFIKASI ===
-    function showNotification(text) {
-      const notif = document.getElementById("notification");
-      notif.innerText = text;
-      notif.classList.add("show");
-      setTimeout(() => notif.classList.remove("show"), 3000);
+      // update ke localStorage
+      let todos = JSON.parse(localStorage.getItem("todos") || "[]");
+      todos = todos.map(t => {
+        if (t.id === msg.todoId) {
+          t.comments = t.comments || [];
+          t.comments.push(msg);
+        }
+        return t;
+      });
+      localStorage.setItem("todos", JSON.stringify(todos));
     }
 
     // === SYNC ===
@@ -256,61 +221,29 @@
     }
 
     function handleData(data) {
-      if (data.type === "todo") {
-        renderTodo(data);
-      }
-      if (data.type === "comment" || data.type === "photo") {
-        appendComment(data);
-      }
-      saveData();
+      if (data.type === "todo") renderTodo(data);
+      if (data.type === "comment" || data.type === "photo") appendComment(data);
     }
 
-    // === LOCAL STORAGE ===
-    function saveData() {
-      const todos = [];
-      document.querySelectorAll(".todo-item").forEach(div => {
-        const id = parseInt(div.id.replace("todo-", ""));
-        const title = div.querySelector("strong").innerText;
-        const desc = div.childNodes[2].textContent.trim();
-        const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
-
-        const comments = [];
-        div.querySelectorAll(".comment").forEach(c => {
-          const type = c.getAttribute("data-type");
-          const user = c.getAttribute("data-user");
-          if (type === "comment") {
-            comments.push({ type, user, text: c.getAttribute("data-text"), todoId: id });
-          } else if (type === "photo") {
-            comments.push({ type, user, data: c.querySelector("img").src, todoId: id });
-          }
+    function saveTodos() {
+      if (role === "mentor") {
+        const todos = [];
+        document.querySelectorAll(".todo-item").forEach(div => {
+          const id = parseInt(div.id.replace("todo-", ""));
+          const title = div.querySelector("strong").innerText;
+          const desc = div.childNodes[2].textContent.trim();
+          const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
+          const comments = [];
+          div.querySelectorAll(".comment").forEach(c => {
+            comments.push({ user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "", type: "comment" });
+          });
+          todos.push({ type: "todo", id, title, desc, user, comments });
         });
-
-        todos.push({ id, title, desc, user, comments });
-      });
-      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
-    }
-
-    function loadData() {
-      const data = JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
-      data.forEach(todo => {
-        renderTodo({ id: todo.id, title: todo.title, desc: todo.desc, user: todo.user });
-        todo.comments.forEach(c => appendComment(c));
-      });
-    }
-
-    document.getElementById("clearDataBtn").addEventListener("click", () => {
-      if (confirm("Hapus semua data lama?")) {
-        localStorage.removeItem("todos-" + roomId);
-        document.getElementById("todoList").innerHTML = "";
+        localStorage.setItem("todos", JSON.stringify(todos));
       }
-    });
-
-    function logout() {
-      localStorage.removeItem("session");
-      location.reload();
     }
 
-    window.onload = loadSession;
+    function logout() { location.reload(); }
   </script>
 </body>
 </html>
