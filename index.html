@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Collaborative Todo with Chat & Photo</title>
+  <title>Todo Kolaborasi</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f8; }
     header { background: #4a90e2; color: white; padding: 12px; text-align: center; }
     .container { padding: 16px; max-width: 800px; margin: auto; }
     .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 16px; }
-    h2 { margin-top: 0; }
-    input, button { padding: 10px; margin: 4px 0; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
+    h2,h3 { margin-top: 0; }
+    input, button { padding: 10px; margin: 6px 0; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
     button { background: #4a90e2; color: white; border: none; cursor: pointer; }
     button:hover { background: #357ABD; }
     .hidden { display: none; }
-    .todo-item { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
-    .todo-meta { font-size: 12px; color: #666; }
-    .chat-box { height: 250px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fff; margin-bottom: 8px; }
-    .msg { margin-bottom: 10px; }
-    .msg strong { color: #4a90e2; }
-    .msg img { max-width: 150px; border-radius: 8px; display: block; margin-top: 4px; }
+    .todo-item { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+    .todo-meta { font-size: 12px; color: #666; margin-bottom: 8px; }
+    .comment-box { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 8px; }
+    .comment { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 14px; }
+    .comment strong { color: #4a90e2; }
+    .comment img { max-width: 120px; border-radius: 6px; display: block; margin-top: 4px; }
     .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
     .online { background: #4caf50; color: white; }
     .offline { background: #f44336; color: white; }
@@ -29,10 +29,10 @@
 </head>
 <body>
   <header>
-    <h1>Todo & Chat Collaboration</h1>
+    <h1>Todo Kolaborasi</h1>
   </header>
   <div class="container">
-    <!-- Auth Section -->
+    <!-- Login Section -->
     <div id="authSection" class="card">
       <h2>Masuk</h2>
       <input type="text" id="userName" placeholder="Nama Anda">
@@ -52,19 +52,14 @@
       </div>
 
       <div id="todoSection" class="card">
-        <h3>Tambah Todo</h3>
-        <input type="text" id="todoTitle" placeholder="Judul Todo">
-        <input type="text" id="todoDesc" placeholder="Deskripsi">
-        <button onclick="addTodo()">Tambah</button>
+        <h3>Daftar Tugas</h3>
+        <!-- Form tambah hanya untuk mentor -->
+        <div id="addTodoForm" class="hidden">
+          <input type="text" id="todoTitle" placeholder="Judul Todo">
+          <input type="text" id="todoDesc" placeholder="Deskripsi">
+          <button onclick="addTodo()">Tambah</button>
+        </div>
         <div id="todoList"></div>
-      </div>
-
-      <div id="chatSection" class="card">
-        <h3>Chat & Komentar</h3>
-        <div id="chatBox" class="chat-box"></div>
-        <input type="text" id="chatInput" placeholder="Tulis komentar...">
-        <input type="file" id="photoInput" accept="image/*">
-        <button onclick="sendMessage()">Kirim</button>
       </div>
 
       <button onclick="logout()" style="background:#f44336;">Keluar</button>
@@ -75,6 +70,7 @@
     let peer, conn, connections = [];
     let userName = "", roomId = "", role = "";
 
+    // === AUTH ===
     function createRoom() {
       userName = document.getElementById("userName").value.trim();
       if (!userName) return alert("Isi nama Anda!");
@@ -84,10 +80,10 @@
       peer.on("open", id => {
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
+        document.getElementById("addTodoForm").classList.remove("hidden");
         peer.on("connection", c => {
           connections.push(c);
           c.on("data", handleData);
-          appendMsg("SYSTEM", c.peer + " bergabung.");
         });
       });
     }
@@ -115,11 +111,12 @@
       document.getElementById("userRole").innerText = info;
     }
 
+    // === TODO ===
     function addTodo() {
       const title = document.getElementById("todoTitle").value.trim();
       const desc = document.getElementById("todoDesc").value.trim();
       if (!title) return alert("Judul tidak boleh kosong");
-      const todo = { type: "todo", title, desc, user: userName };
+      const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
       renderTodo(todo);
       broadcast(todo);
       document.getElementById("todoTitle").value = "";
@@ -129,52 +126,61 @@
     function renderTodo(todo) {
       const div = document.createElement("div");
       div.className = "todo-item";
-      div.innerHTML = `<strong>${todo.title}</strong><br>${todo.desc}<div class="todo-meta">oleh ${todo.user}</div>`;
+      div.id = "todo-" + todo.id;
+      div.innerHTML = `
+        <strong>${todo.title}</strong><br>
+        ${todo.desc}
+        <div class="todo-meta">oleh ${todo.user}</div>
+        <div class="comment-box" id="comments-${todo.id}">
+          <h4>Komentar</h4>
+          <div class="comment-list"></div>
+          <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
+          <input type="file" id="photoInput-${todo.id}" accept="image/*">
+          <button onclick="sendComment(${todo.id})">Kirim</button>
+        </div>
+      `;
       document.getElementById("todoList").appendChild(div);
     }
 
-    function sendMessage() {
-      const text = document.getElementById("chatInput").value.trim();
-      const file = document.getElementById("photoInput").files[0];
+    // === KOMENTAR ===
+    function sendComment(todoId) {
+      const text = document.getElementById("commentInput-" + todoId).value.trim();
+      const file = document.getElementById("photoInput-" + todoId).files[0];
       if (!text && !file) return;
 
       if (text) {
-        const msg = { type: "chat", text, user: userName };
-        appendMsg(msg.user, msg.text);
+        const msg = { type: "comment", todoId, text, user: userName };
+        appendComment(msg);
         broadcast(msg);
-        document.getElementById("chatInput").value = "";
+        document.getElementById("commentInput-" + todoId).value = "";
       }
 
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
-          const msg = { type: "photo", data: reader.result, user: userName };
-          appendPhoto(msg.user, msg.data);
+          const msg = { type: "photo", todoId, data: reader.result, user: userName };
+          appendComment(msg);
           broadcast(msg);
         };
         reader.readAsDataURL(file);
-        document.getElementById("photoInput").value = "";
+        document.getElementById("photoInput-" + todoId).value = "";
       }
     }
 
-    function appendMsg(user, text) {
-      const box = document.getElementById("chatBox");
+    function appendComment(msg) {
+      const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
+      if (!list) return;
       const div = document.createElement("div");
-      div.className = "msg";
-      div.innerHTML = `<strong>${user}:</strong> ${text}`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
+      div.className = "comment";
+      if (msg.type === "comment") {
+        div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+      } else if (msg.type === "photo") {
+        div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
+      }
+      list.appendChild(div);
     }
 
-    function appendPhoto(user, data) {
-      const box = document.getElementById("chatBox");
-      const div = document.createElement("div");
-      div.className = "msg";
-      div.innerHTML = `<strong>${user}:</strong><br><img src="${data}">`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
+    // === SYNC ===
     function broadcast(data) {
       if (role === "mentor") {
         connections.forEach(c => c.send(data));
@@ -185,13 +191,10 @@
 
     function handleData(data) {
       if (data.type === "todo") renderTodo(data);
-      if (data.type === "chat") appendMsg(data.user, data.text);
-      if (data.type === "photo") appendPhoto(data.user, data.data);
+      if (data.type === "comment" || data.type === "photo") appendComment(data);
     }
 
-    function logout() {
-      location.reload();
-    }
+    function logout() { location.reload(); }
   </script>
 </body>
 </html>
