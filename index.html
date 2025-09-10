@@ -320,7 +320,7 @@ function renderTodo(todo) {
     <span>${todo.desc}</span>
     <div class="todo-meta">oleh ${todo.user}</div>
     <button onclick="toggleComment(${todo.id})">💬 Komentar</button>
-    ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">✖</button>` : ""}
+    ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">🗑️</button>` : ""}
     <div class="comment-box hidden" id="commentBox-${todo.id}">
       <h4>Komentar</h4>
       <div class="comment-list"></div>
