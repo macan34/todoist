@@ -24,6 +24,21 @@
     .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
     .online { background: #4caf50; color: white; }
     .offline { background: #f44336; color: white; }
+
+    /* PREVIEW FOTO */
+    .preview-box {
+      margin-top: 6px;
+      padding: 6px;
+      border: 1px dashed #aaa;
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+    }
+    .preview-box img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
   </style>
 </head>
 <body>
@@ -52,7 +67,6 @@
 
       <div id="todoSection" class="card">
         <h3>Daftar Tugas</h3>
-        <!-- Form tambah hanya untuk mentor -->
         <div id="addTodoForm" class="hidden">
           <input type="text" id="todoTitle" placeholder="Judul Todo">
           <input type="text" id="todoDesc" placeholder="Deskripsi">
@@ -77,21 +91,15 @@
         userName = s.userName;
         roomId = s.roomId;
         role = s.role;
-        if (role === "mentor") {
-          autoCreateRoom();
-        } else if (role === "member") {
-          autoJoinRoom();
-        }
+        if (role === "mentor") autoCreateRoom();
+        else if (role === "member") autoJoinRoom();
       }
     });
 
     function saveSession() {
       localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
     }
-
-    function clearSession() {
-      localStorage.removeItem("session");
-    }
+    function clearSession() { localStorage.removeItem("session"); }
 
     // === AUTH ===
     function createRoom() {
@@ -110,7 +118,6 @@
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
 
-        // popup data lama
         let savedTodos = localStorage.getItem("todos");
         if (savedTodos) {
           if (confirm("Data lama ditemukan. Muat data lama?")) {
@@ -180,12 +187,31 @@
           <h4>Komentar</h4>
           <div class="comment-list"></div>
           <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
-          <input type="file" id="photoInput-${todo.id}" accept="image/*">
+          <input type="file" id="photoInput-${todo.id}" accept="image/*" onchange="previewPhoto(${todo.id})">
+          <div id="preview-${todo.id}" class="preview-box hidden"></div>
           <button onclick="sendComment(${todo.id})">Kirim</button>
         </div>
       `;
       document.getElementById("todoList").appendChild(div);
       if (todo.comments) todo.comments.forEach(c => appendComment(c));
+    }
+
+    function previewPhoto(todoId) {
+      const fileInput = document.getElementById("photoInput-" + todoId);
+      const previewBox = document.getElementById("preview-" + todoId);
+      const file = fileInput.files[0];
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto">`;
+          previewBox.classList.remove("hidden");
+        };
+        reader.readAsDataURL(file);
+      } else {
+        previewBox.innerHTML = "";
+        previewBox.classList.add("hidden");
+      }
     }
 
     function sendComment(todoId) {
@@ -208,9 +234,11 @@
           appendComment(msg);
           saveTodos();
           broadcast(msg);
+          document.getElementById("photoInput-" + todoId).value = "";
+          document.getElementById("preview-" + todoId).innerHTML = "";
+          document.getElementById("preview-" + todoId).classList.add("hidden");
         };
         reader.readAsDataURL(file);
-        document.getElementById("photoInput-" + todoId).value = "";
       }
     }
 
