@@ -244,18 +244,22 @@ function addTodo() {
 }
 
 function renderTodo(todo) {
+  // jika sudah ada di DOM, jangan render ulang
   if (document.getElementById("todo-" + todo.id)) return;
 
   const div = document.createElement("div");
   div.className = "todo-item";
   div.id = "todo-" + todo.id;
-
   div.innerHTML = `
-    <strong>${todo.title}</strong><br>
-    ${todo.desc}
-    <div class="todo-meta">oleh ${todo.user}</div>
-    ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">🗑 Hapus</button>` : ""}
-    <div class="comment-box" id="comments-${todo.id}">
+    <div class="todo-header">
+      <strong>${todo.title}</strong><br>
+      <span class="todo-desc">${todo.desc}</span>
+      <div class="todo-meta">oleh ${todo.user}</div>
+      <button class="toggle-comment-btn" onclick="toggleComment(${todo.id})">💬 Komentar</button>
+      ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">✖</button>` : ""}
+    </div>
+
+    <div class="comment-box hidden" id="commentBox-${todo.id}">
       <h4>Komentar</h4>
       <div class="comment-list"></div>
       <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
@@ -268,12 +272,11 @@ function renderTodo(todo) {
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
 }
 
-function deleteTodo(todoId) {
-  if (!confirm("Yakin hapus tugas ini?")) return;
-  document.getElementById("todo-" + todoId)?.remove();
-  saveTodos();
-  broadcast({ type: "deleteTodo", todoId });
+function toggleComment(todoId) {
+  const box = document.getElementById("commentBox-" + todoId);
+  box.classList.toggle("hidden");
 }
+
 
 function previewPhoto(todoId) {
   const fileInput = document.getElementById("photoInput-" + todoId);
