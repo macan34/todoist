@@ -62,7 +62,10 @@
         <div id="todoList"></div>
       </div>
 
+      <!-- Tombol keluar -->
       <button onclick="logout()" style="background:#f44336;">Keluar</button>
+      <!-- Tombol reset hanya mentor -->
+      <button id="resetBtn" class="hidden" onclick="resetData()" style="background:#ff9800;margin-top:8px;">Hapus Semua Data</button>
     </div>
   </div>
 
@@ -100,6 +103,7 @@
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
+        document.getElementById("resetBtn").classList.remove("hidden");
         saveSession();
         loadData();
         peer.on("connection", c => {
@@ -134,6 +138,7 @@
           initApp("Room ID: " + id, "Mentor: " + userName);
           document.getElementById("status").className = "status online";
           document.getElementById("addTodoForm").classList.remove("hidden");
+          document.getElementById("resetBtn").classList.remove("hidden");
           loadData();
           peer.on("connection", c => {
             connections.push(c);
@@ -225,7 +230,10 @@
       if (!list) return;
       const div = document.createElement("div");
       div.className = "comment";
+      div.setAttribute("data-type", msg.type);
+      div.setAttribute("data-user", msg.user);
       if (msg.type === "comment") {
+        div.setAttribute("data-text", msg.text);
         div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
       } else if (msg.type === "photo") {
         div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
@@ -258,7 +266,13 @@
         const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
         const comments = [];
         div.querySelectorAll(".comment").forEach(c => {
-          comments.push(c.innerHTML);
+          const type = c.getAttribute("data-type");
+          const user = c.getAttribute("data-user");
+          if (type === "comment") {
+            comments.push({ type, user, text: c.getAttribute("data-text") });
+          } else if (type === "photo") {
+            comments.push({ type, user, data: c.querySelector("img").src });
+          }
         });
         todos.push({ id, title, desc, user, comments });
       });
@@ -269,14 +283,13 @@
       const data = JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
       data.forEach(todo => {
         renderTodo({ id: todo.id, title: todo.title, desc: todo.desc, user: todo.user });
-        const list = document.querySelector("#comments-" + todo.id + " .comment-list");
-        todo.comments.forEach(html => {
-          const div = document.createElement("div");
-          div.className = "comment";
-          div.innerHTML = html;
-          list.appendChild(div);
-        });
+        todo.comments.forEach(c => appendComment({ ...c, todoId: todo.id }));
       });
+    }
+
+    function resetData() {
+      localStorage.removeItem("todos-" + roomId);
+      document.getElementById("todoList").innerHTML = "";
     }
 
     function logout() { clearSession(); location.reload(); }
