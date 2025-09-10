@@ -70,6 +70,40 @@
     let peer, conn, connections = [];
     let userName = "", roomId = "", role = "";
 
+    // === STORAGE ===
+    function saveData() {
+      const todos = [];
+      document.querySelectorAll(".todo-item").forEach(item => {
+        const id = item.id.replace("todo-", "");
+        const title = item.querySelector("strong").innerText;
+        const desc = item.childNodes[2].textContent.trim();
+        const user = item.querySelector(".todo-meta").innerText.replace("oleh ", "");
+        const comments = [];
+        item.querySelectorAll(".comment").forEach(c => comments.push(c.innerHTML));
+        todos.push({ id, title, desc, user, comments });
+      });
+      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem("todos-" + roomId);
+      if (saved) {
+        const todos = JSON.parse(saved);
+        todos.forEach(t => {
+          renderTodo({ id: t.id, title: t.title, desc: t.desc, user: t.user });
+          t.comments.forEach(html => {
+            const list = document.querySelector("#comments-" + t.id + " .comment-list");
+            if (list) {
+              const div = document.createElement("div");
+              div.className = "comment";
+              div.innerHTML = html;
+              list.appendChild(div);
+            }
+          });
+        });
+      }
+    }
+
     // === AUTH ===
     function createRoom() {
       userName = document.getElementById("userName").value.trim();
@@ -81,6 +115,7 @@
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
+        loadData(); // load todo lama
         peer.on("connection", c => {
           connections.push(c);
           c.on("data", handleData);
@@ -99,6 +134,7 @@
         conn.on("open", () => {
           initApp("Room ID: " + roomId, "Member: " + userName);
           document.getElementById("status").className = "status online";
+          loadData(); // load todo lama
           conn.on("data", handleData);
         });
       });
@@ -118,6 +154,7 @@
       if (!title) return alert("Judul tidak boleh kosong");
       const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
       renderTodo(todo);
+      saveData();
       broadcast(todo);
       document.getElementById("todoTitle").value = "";
       document.getElementById("todoDesc").value = "";
@@ -151,6 +188,7 @@
       if (text) {
         const msg = { type: "comment", todoId, text, user: userName };
         appendComment(msg);
+        saveData();
         broadcast(msg);
         document.getElementById("commentInput-" + todoId).value = "";
       }
@@ -160,6 +198,7 @@
         reader.onload = () => {
           const msg = { type: "photo", todoId, data: reader.result, user: userName };
           appendComment(msg);
+          saveData();
           broadcast(msg);
         };
         reader.readAsDataURL(file);
@@ -190,8 +229,8 @@
     }
 
     function handleData(data) {
-      if (data.type === "todo") renderTodo(data);
-      if (data.type === "comment" || data.type === "photo") appendComment(data);
+      if (data.type === "todo") { renderTodo(data); saveData(); }
+      if (data.type === "comment" || data.type === "photo") { appendComment(data); saveData(); }
     }
 
     function logout() { location.reload(); }
