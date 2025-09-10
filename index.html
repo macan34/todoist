@@ -5,107 +5,151 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Todopro</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<style>
-/* === STYLING TODO ITEM === */
-.todo-item {
-  background: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 12px;
-  margin: 10px 0;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-  position: relative;
-}
 
-.todo-item strong {
-  font-size: 1.1rem;
-}
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
 
-.todo-meta {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 4px;
-}
+    header {
+      text-align: center;
+      padding: 20px;
+      background: #4cafef;
+      color: white;
+    }
 
-/* === TOMBOL HAPUS TODO === */
-.delete-btn {
-  background: #ff4d4d;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
-  cursor: pointer;
-  float: right;
-  margin-top: -5px;
-  transition: background 0.2s;
-}
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 10px;
+    }
 
-.delete-btn:hover {
-  background: #cc0000;
-}
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
 
-/* === KOMENTAR BOX === */
-.comment-box {
-  background: #f9f9f9;
-  border-radius: 10px;
-  margin-top: 10px;
-  padding: 8px;
-  border: 1px solid #ddd;
-}
+    input, button {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 5px 0;
+    }
 
-.comment {
-  background: #fff;
-  border-radius: 8px;
-  padding: 6px;
-  margin: 5px 0;
-  position: relative;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
+    button {
+      background: #4cafef;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
 
-/* === TOMBOL HAPUS KOMENTAR === */
-.delete-comment-btn {
-  background: none;
-  border: none;
-  color: #ff4d4d;
-  font-size: 14px;
-  cursor: pointer;
-  position: absolute;
-  top: 4px;
-  right: 6px;
-}
+    button:hover {
+      background: #379ed7;
+    }
 
-.delete-comment-btn:hover {
-  color: #cc0000;
-}
+    .hidden { display: none; }
 
-/* === PREVIEW FOTO === */
-.preview-box {
-  margin-top: 8px;
-  text-align: center;
-}
+    /* === STYLING TODO ITEM === */
+    .todo-item {
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+      position: relative;
+    }
 
-.preview-box img {
-  max-width: 100%;
-  max-height: 150px;
-  border-radius: 10px;
-  border: 2px solid #ddd;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
+    .todo-item strong { font-size: 1.1rem; }
 
-/* === RESPONSIVE === */
-@media (max-width: 600px) {
-  .todo-item { font-size: 0.9rem; }
-  .delete-btn { width: 24px; height: 24px; font-size: 14px; }
-}
-</style>
+    .todo-meta {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+    }
 
+    /* === TOMBOL HAPUS TODO === */
+    .delete-btn {
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 16px;
+      cursor: pointer;
+      float: right;
+      margin-top: -5px;
+      transition: background 0.2s;
+    }
+
+    .delete-btn:hover { background: #cc0000; }
+
+    /* === KOMENTAR BOX === */
+    .comment-box {
+      background: #f9f9f9;
+      border-radius: 10px;
+      margin-top: 10px;
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .comment {
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px;
+      margin: 5px 0;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* === TOMBOL HAPUS KOMENTAR === */
+    .delete-comment-btn {
+      background: none;
+      border: none;
+      color: #ff4d4d;
+      font-size: 14px;
+      cursor: pointer;
+      position: absolute;
+      top: 4px;
+      right: 6px;
+    }
+
+    .delete-comment-btn:hover { color: #cc0000; }
+
+    /* === PREVIEW FOTO === */
+    .preview-box {
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      max-height: 150px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 600px) {
+      .todo-item { font-size: 0.9rem; }
+      .delete-btn { width: 24px; height: 24px; font-size: 14px; }
+    }
+  </style>
 </head>
+
 <body>
   <header>
     <h1>Todo Kolaborasi</h1>
   </header>
+
   <div class="container">
     <!-- Login Section -->
     <div id="authSection" class="card">
@@ -144,7 +188,6 @@
 let peer, conn, connections = [];
 let userName = "", roomId = "", role = "";
 
-// === AUTO LOGIN ===
 window.addEventListener("load", () => {
   const savedSession = localStorage.getItem("session");
   if (savedSession) {
@@ -155,7 +198,7 @@ window.addEventListener("load", () => {
     if (role === "mentor") autoCreateRoom();
     else if (role === "member") autoJoinRoom();
   }
-  loadLocalTodos(); // 🔥 muat todo lokal
+  loadLocalTodos();
 });
 
 function saveSession() {
@@ -163,7 +206,6 @@ function saveSession() {
 }
 function clearSession() { localStorage.removeItem("session"); }
 
-// === AUTH ===
 function createRoom() {
   userName = document.getElementById("userName").value.trim();
   if (!userName) return alert("Isi nama Anda!");
@@ -193,7 +235,6 @@ function autoCreateRoom() {
       connections.push(c);
       c.on("data", data => {
         if (data.type === "requestData") {
-          // 🔥 kirim semua data todo ke member baru
           c.send({ type: "allTodos", todos: getAllTodos() });
         } else handleData(data);
       });
@@ -217,7 +258,7 @@ function autoJoinRoom() {
     conn.on("open", () => {
       initApp("Room ID: " + roomId, "Member: " + userName);
       document.getElementById("status").className = "status online";
-      conn.send({ type: "requestData" }); // minta data terbaru
+      conn.send({ type: "requestData" });
       conn.on("data", handleData);
     });
   });
@@ -230,7 +271,6 @@ function initApp(title, info) {
   document.getElementById("userRole").innerText = info;
 }
 
-// === TODO ===
 function addTodo() {
   const title = document.getElementById("todoTitle").value.trim();
   const desc = document.getElementById("todoDesc").value.trim();
@@ -244,21 +284,16 @@ function addTodo() {
 }
 
 function renderTodo(todo) {
-  // jika sudah ada di DOM, jangan render ulang
   if (document.getElementById("todo-" + todo.id)) return;
-
   const div = document.createElement("div");
   div.className = "todo-item";
   div.id = "todo-" + todo.id;
   div.innerHTML = `
-    <div class="todo-header">
-      <strong>${todo.title}</strong><br>
-      <span class="todo-desc">${todo.desc}</span>
-      <div class="todo-meta">oleh ${todo.user}</div>
-      <button class="toggle-comment-btn" onclick="toggleComment(${todo.id})">💬 Komentar</button>
-      ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">✖</button>` : ""}
-    </div>
-
+    <strong>${todo.title}</strong><br>
+    <span>${todo.desc}</span>
+    <div class="todo-meta">oleh ${todo.user}</div>
+    <button onclick="toggleComment(${todo.id})">💬 Komentar</button>
+    ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">✖</button>` : ""}
     <div class="comment-box hidden" id="commentBox-${todo.id}">
       <h4>Komentar</h4>
       <div class="comment-list"></div>
@@ -266,27 +301,23 @@ function renderTodo(todo) {
       <input type="file" id="photoInput-${todo.id}" accept="image/*" onchange="previewPhoto(${todo.id})">
       <div id="preview-${todo.id}" class="preview-box hidden"></div>
       <button onclick="sendComment(${todo.id})">Kirim</button>
-    </div>
-  `;
+    </div>`;
   document.getElementById("todoList").appendChild(div);
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
 }
 
 function toggleComment(todoId) {
-  const box = document.getElementById("commentBox-" + todoId);
-  box.classList.toggle("hidden");
+  document.getElementById("commentBox-" + todoId).classList.toggle("hidden");
 }
-
 
 function previewPhoto(todoId) {
   const fileInput = document.getElementById("photoInput-" + todoId);
   const previewBox = document.getElementById("preview-" + todoId);
   const file = fileInput.files[0];
-
   if (file) {
     const reader = new FileReader();
     reader.onload = () => {
-      previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto" class="preview-img">`;
+      previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto">`;
       previewBox.classList.remove("hidden");
     };
     reader.readAsDataURL(file);
@@ -300,7 +331,6 @@ function sendComment(todoId) {
   const text = document.getElementById("commentInput-" + todoId).value.trim();
   const file = document.getElementById("photoInput-" + todoId).files[0];
   if (!text && !file) return;
-
   if (text) {
     const msg = { type: "comment", todoId, text, user: userName };
     appendComment(msg);
@@ -308,7 +338,6 @@ function sendComment(todoId) {
     broadcast(msg);
     document.getElementById("commentInput-" + todoId).value = "";
   }
-
   if (file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -325,15 +354,12 @@ function sendComment(todoId) {
 }
 
 function appendComment(msg, save = true) {
-  const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
+  const list = document.querySelector(`#todo-${msg.todoId} .comment-list`);
   if (!list) return;
   const div = document.createElement("div");
   div.className = "comment";
-
   if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
   else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
-
-  // tombol hapus komentar (hanya mentor)
   if (role === "mentor") {
     const del = document.createElement("button");
     del.innerText = "❌";
@@ -341,26 +367,14 @@ function appendComment(msg, save = true) {
     del.onclick = () => { div.remove(); saveTodos(); };
     div.appendChild(del);
   }
-
   list.appendChild(div);
   if (save) saveTodos();
 }
 
 function handleData(data) {
-  if (data.type === "todo") {
-    renderTodo(data); saveTodos();
-  }
-  if (data.type === "comment" || data.type === "photo") {
-    appendComment(data); saveTodos();
-  }
-  if (data.type === "allTodos") {
-    data.todos.forEach(todo => renderTodo(todo));
-    saveTodos();
-  }
-  if (data.type === "deleteTodo") {
-    document.getElementById("todo-" + data.todoId)?.remove();
-    saveTodos();
-  }
+  if (data.type === "todo") renderTodo(data);
+  if (data.type === "comment" || data.type === "photo") appendComment(data);
+  if (data.type === "allTodos") data.todos.forEach(todo => renderTodo(todo));
 }
 
 function getAllTodos() {
@@ -372,7 +386,7 @@ function saveTodos() {
   document.querySelectorAll(".todo-item").forEach(div => {
     const id = parseInt(div.id.replace("todo-", ""));
     const title = div.querySelector("strong").innerText;
-    const desc = div.childNodes[2].textContent.trim();
+    const desc = div.querySelector("span").innerText;
     const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
     const comments = [];
     div.querySelectorAll(".comment").forEach(c => {
@@ -395,8 +409,11 @@ function logout() {
   localStorage.removeItem("todos");
   location.reload();
 }
+
+function broadcast(msg) {
+  connections.forEach(c => c.send(msg));
+  if (conn) conn.send(msg);
+}
 </script>
-
-
 </body>
 </html>
