@@ -74,20 +74,32 @@
     margin-top: 4px;
   }
 
-  /* === TOMBOL HAPUS TODO === */
-  .delete-btn {
-    background: #ff4d4d;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    font-size: 16px;
-    cursor: pointer;
-    float: right;
-    margin-top: -5px;
-    transition: background 0.2s;
-  }
+ /* === TOMBOL HAPUS KOMENTAR === */
+.delete-comment-btn {
+  background: none;
+  border: none;
+  color: #ff4d4d;
+  font-size: 16px; /* sedikit lebih kecil */
+  cursor: pointer;
+  position: absolute;
+  top: 50%; /* posisikan di tengah */
+  right: 10px;
+  transform: translateY(-50%); /* benar-benar center vertical */
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.delete-comment-btn:hover {
+  background: rgba(255, 77, 77, 0.1);
+  color: #cc0000;
+}
+
 
   .delete-btn:hover { background: #cc0000; }
 
