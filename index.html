@@ -94,8 +94,7 @@ window.addEventListener("load", () => {
     if (role === "mentor") autoCreateRoom();
     else if (role === "member") autoJoinRoom();
   }
-  // 🔥 LOAD TODOS LOCAL JIKA ADA
-  loadLocalTodos();
+  loadLocalTodos(); // 🔥 muat todo lokal
 });
 
 function saveSession() {
@@ -131,7 +130,12 @@ function autoCreateRoom() {
 
     peer.on("connection", c => {
       connections.push(c);
-      c.on("data", handleData);
+      c.on("data", data => {
+        if (data.type === "requestData") {
+          // 🔥 kirim semua data todo ke member baru
+          c.send({ type: "allTodos", todos: getAllTodos() });
+        } else handleData(data);
+      });
     });
   });
 }
@@ -152,10 +156,7 @@ function autoJoinRoom() {
     conn.on("open", () => {
       initApp("Room ID: " + roomId, "Member: " + userName);
       document.getElementById("status").className = "status online";
-
-      // Kirim permintaan data terbaru ke mentor
-      conn.send({ type: "requestData" });
-
+      conn.send({ type: "requestData" }); // minta data terbaru
       conn.on("data", handleData);
     });
   });
@@ -182,16 +183,17 @@ function addTodo() {
 }
 
 function renderTodo(todo) {
-  // jika sudah ada di DOM, jangan render ulang
   if (document.getElementById("todo-" + todo.id)) return;
 
   const div = document.createElement("div");
   div.className = "todo-item";
   div.id = "todo-" + todo.id;
+
   div.innerHTML = `
     <strong>${todo.title}</strong><br>
     ${todo.desc}
     <div class="todo-meta">oleh ${todo.user}</div>
+    ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">🗑 Hapus</button>` : ""}
     <div class="comment-box" id="comments-${todo.id}">
       <h4>Komentar</h4>
       <div class="comment-list"></div>
@@ -205,6 +207,13 @@ function renderTodo(todo) {
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
 }
 
+function deleteTodo(todoId) {
+  if (!confirm("Yakin hapus tugas ini?")) return;
+  document.getElementById("todo-" + todoId)?.remove();
+  saveTodos();
+  broadcast({ type: "deleteTodo", todoId });
+}
+
 function previewPhoto(todoId) {
   const fileInput = document.getElementById("photoInput-" + todoId);
   const previewBox = document.getElementById("preview-" + todoId);
@@ -213,7 +222,7 @@ function previewPhoto(todoId) {
   if (file) {
     const reader = new FileReader();
     reader.onload = () => {
-      previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto">`;
+      previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto" class="preview-img">`;
       previewBox.classList.remove("hidden");
     };
     reader.readAsDataURL(file);
@@ -256,31 +265,42 @@ function appendComment(msg, save = true) {
   if (!list) return;
   const div = document.createElement("div");
   div.className = "comment";
+
   if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
   else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
+
+  // tombol hapus komentar (hanya mentor)
+  if (role === "mentor") {
+    const del = document.createElement("button");
+    del.innerText = "❌";
+    del.className = "delete-comment-btn";
+    del.onclick = () => { div.remove(); saveTodos(); };
+    div.appendChild(del);
+  }
+
   list.appendChild(div);
-
   if (save) saveTodos();
-}
-
-function broadcast(data) {
-  if (role === "mentor") connections.forEach(c => c.send(data));
-  else if (conn) conn.send(data);
 }
 
 function handleData(data) {
   if (data.type === "todo") {
-    renderTodo(data);
-    saveTodos();
+    renderTodo(data); saveTodos();
   }
   if (data.type === "comment" || data.type === "photo") {
-    appendComment(data);
-    saveTodos();
+    appendComment(data); saveTodos();
   }
   if (data.type === "allTodos") {
     data.todos.forEach(todo => renderTodo(todo));
     saveTodos();
   }
+  if (data.type === "deleteTodo") {
+    document.getElementById("todo-" + data.todoId)?.remove();
+    saveTodos();
+  }
+}
+
+function getAllTodos() {
+  return JSON.parse(localStorage.getItem("todos") || "[]");
 }
 
 function saveTodos() {
@@ -312,6 +332,7 @@ function logout() {
   location.reload();
 }
 </script>
+
 
 </body>
 </html>
