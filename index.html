@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collaborative Todo with Chat & Photo</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f8; }
+    header { background: #4a90e2; color: white; padding: 12px; text-align: center; }
+    .container { padding: 16px; max-width: 800px; margin: auto; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    h2 { margin-top: 0; }
+    input, button { padding: 10px; margin: 4px 0; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
+    button { background: #4a90e2; color: white; border: none; cursor: pointer; }
+    button:hover { background: #357ABD; }
+    .hidden { display: none; }
+    .todo-item { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .todo-meta { font-size: 12px; color: #666; }
+    .chat-box { height: 250px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fff; margin-bottom: 8px; }
+    .msg { margin-bottom: 10px; }
+    .msg strong { color: #4a90e2; }
+    .msg img { max-width: 150px; border-radius: 8px; display: block; margin-top: 4px; }
+    .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
+    .online { background: #4caf50; color: white; }
+    .offline { background: #f44336; color: white; }
+    @media (max-width:600px){ .container{padding:10px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Todo & Chat Collaboration</h1>
+  </header>
+  <div class="container">
+    <!-- Auth Section -->
+    <div id="authSection" class="card">
+      <h2>Masuk</h2>
+      <input type="text" id="userName" placeholder="Nama Anda">
+      <div style="margin-top:10px;">
+        <button onclick="createRoom()">Buat Room (Mentor)</button>
+        <input type="text" id="roomIdInput" placeholder="Masukkan Room ID untuk Join">
+        <button onclick="joinRoom()">Gabung Room (Member)</button>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+      <div class="card">
+        <h2 id="roomTitle">Room</h2>
+        <p id="userRole"></p>
+        <p>Status: <span id="status" class="status offline">Offline</span></p>
+      </div>
+
+      <div id="todoSection" class="card">
+        <h3>Tambah Todo</h3>
+        <input type="text" id="todoTitle" placeholder="Judul Todo">
+        <input type="text" id="todoDesc" placeholder="Deskripsi">
+        <button onclick="addTodo()">Tambah</button>
+        <div id="todoList"></div>
+      </div>
+
+      <div id="chatSection" class="card">
+        <h3>Chat & Komentar</h3>
+        <div id="chatBox" class="chat-box"></div>
+        <input type="text" id="chatInput" placeholder="Tulis komentar...">
+        <input type="file" id="photoInput" accept="image/*">
+        <button onclick="sendMessage()">Kirim</button>
+      </div>
+
+      <button onclick="logout()" style="background:#f44336;">Keluar</button>
+    </div>
+  </div>
+
+  <script>
+    let peer, conn, connections = [];
+    let userName = "", roomId = "", role = "";
+
+    function createRoom() {
+      userName = document.getElementById("userName").value.trim();
+      if (!userName) return alert("Isi nama Anda!");
+      role = "mentor";
+      roomId = "room-" + Math.floor(Math.random() * 10000);
+      peer = new Peer(roomId);
+      peer.on("open", id => {
+        initApp("Room ID: " + id, "Mentor: " + userName);
+        document.getElementById("status").className = "status online";
+        peer.on("connection", c => {
+          connections.push(c);
+          c.on("data", handleData);
+          appendMsg("SYSTEM", c.peer + " bergabung.");
+        });
+      });
+    }
+
+    function joinRoom() {
+      userName = document.getElementById("userName").value.trim();
+      roomId = document.getElementById("roomIdInput").value.trim();
+      if (!userName || !roomId) return alert("Isi nama dan Room ID!");
+      role = "member";
+      peer = new Peer();
+      peer.on("open", () => {
+        conn = peer.connect(roomId);
+        conn.on("open", () => {
+          initApp("Room ID: " + roomId, "Member: " + userName);
+          document.getElementById("status").className = "status online";
+          conn.on("data", handleData);
+        });
+      });
+    }
+
+    function initApp(title, info) {
+      document.getElementById("authSection").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      document.getElementById("roomTitle").innerText = title;
+      document.getElementById("userRole").innerText = info;
+    }
+
+    function addTodo() {
+      const title = document.getElementById("todoTitle").value.trim();
+      const desc = document.getElementById("todoDesc").value.trim();
+      if (!title) return alert("Judul tidak boleh kosong");
+      const todo = { type: "todo", title, desc, user: userName };
+      renderTodo(todo);
+      broadcast(todo);
+      document.getElementById("todoTitle").value = "";
+      document.getElementById("todoDesc").value = "";
+    }
+
+    function renderTodo(todo) {
+      const div = document.createElement("div");
+      div.className = "todo-item";
+      div.innerHTML = `<strong>${todo.title}</strong><br>${todo.desc}<div class="todo-meta">oleh ${todo.user}</div>`;
+      document.getElementById("todoList").appendChild(div);
+    }
+
+    function sendMessage() {
+      const text = document.getElementById("chatInput").value.trim();
+      const file = document.getElementById("photoInput").files[0];
+      if (!text && !file) return;
+
+      if (text) {
+        const msg = { type: "chat", text, user: userName };
+        appendMsg(msg.user, msg.text);
+        broadcast(msg);
+        document.getElementById("chatInput").value = "";
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const msg = { type: "photo", data: reader.result, user: userName };
+          appendPhoto(msg.user, msg.data);
+          broadcast(msg);
+        };
+        reader.readAsDataURL(file);
+        document.getElementById("photoInput").value = "";
+      }
+    }
+
+    function appendMsg(user, text) {
+      const box = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.className = "msg";
+      div.innerHTML = `<strong>${user}:</strong> ${text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function appendPhoto(user, data) {
+      const box = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.className = "msg";
+      div.innerHTML = `<strong>${user}:</strong><br><img src="${data}">`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function broadcast(data) {
+      if (role === "mentor") {
+        connections.forEach(c => c.send(data));
+      } else if (conn) {
+        conn.send(data);
+      }
+    }
+
+    function handleData(data) {
+      if (data.type === "todo") renderTodo(data);
+      if (data.type === "chat") appendMsg(data.user, data.text);
+      if (data.type === "photo") appendPhoto(data.user, data.data);
+    }
+
+    function logout() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
