@@ -79,223 +79,239 @@
     </div>
   </div>
 
-  <script>
-    let peer, conn, connections = [];
-    let userName = "", roomId = "", role = "";
+<script>
+let peer, conn, connections = [];
+let userName = "", roomId = "", role = "";
 
-    // === AUTO LOGIN ===
-    window.addEventListener("load", () => {
-      const savedSession = localStorage.getItem("session");
-      if (savedSession) {
-        const s = JSON.parse(savedSession);
-        userName = s.userName;
-        roomId = s.roomId;
-        role = s.role;
-        if (role === "mentor") autoCreateRoom();
-        else if (role === "member") autoJoinRoom();
-      }
-    });
+// === AUTO LOGIN ===
+window.addEventListener("load", () => {
+  const savedSession = localStorage.getItem("session");
+  if (savedSession) {
+    const s = JSON.parse(savedSession);
+    userName = s.userName;
+    roomId = s.roomId;
+    role = s.role;
+    if (role === "mentor") autoCreateRoom();
+    else if (role === "member") autoJoinRoom();
+  }
+  // 🔥 LOAD TODOS LOCAL JIKA ADA
+  loadLocalTodos();
+});
 
-    function saveSession() {
-      localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
-    }
-    function clearSession() { localStorage.removeItem("session"); }
+function saveSession() {
+  localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
+}
+function clearSession() { localStorage.removeItem("session"); }
 
-    // === AUTH ===
-    function createRoom() {
-      userName = document.getElementById("userName").value.trim();
-      if (!userName) return alert("Isi nama Anda!");
-      role = "mentor";
-      roomId = "room-" + Math.floor(Math.random() * 10000);
-      saveSession();
-      autoCreateRoom();
-    }
+// === AUTH ===
+function createRoom() {
+  userName = document.getElementById("userName").value.trim();
+  if (!userName) return alert("Isi nama Anda!");
+  role = "mentor";
+  roomId = "room-" + Math.floor(Math.random() * 10000);
+  saveSession();
+  autoCreateRoom();
+}
 
-    function autoCreateRoom() {
-      peer = new Peer(roomId);
-      peer.on("open", id => {
-        initApp("Room ID: " + id, "Mentor: " + userName);
-        document.getElementById("status").className = "status online";
-        document.getElementById("addTodoForm").classList.remove("hidden");
+function autoCreateRoom() {
+  peer = new Peer(roomId);
+  peer.on("open", id => {
+    initApp("Room ID: " + id, "Mentor: " + userName);
+    document.getElementById("status").className = "status online";
+    document.getElementById("addTodoForm").classList.remove("hidden");
 
-        let savedTodos = localStorage.getItem("todos");
-        if (savedTodos) {
-          if (confirm("Data lama ditemukan. Muat data lama?")) {
-            JSON.parse(savedTodos).forEach(todo => renderTodo(todo));
-          } else {
-            localStorage.removeItem("todos");
-          }
-        }
-
-        peer.on("connection", c => {
-          connections.push(c);
-          c.on("data", handleData);
-        });
-      });
-    }
-
-    function joinRoom() {
-      userName = document.getElementById("userName").value.trim();
-      roomId = document.getElementById("roomIdInput").value.trim();
-      if (!userName || !roomId) return alert("Isi nama dan Room ID!");
-      role = "member";
-      saveSession();
-      autoJoinRoom();
-    }
-
-    function autoJoinRoom() {
-      peer = new Peer();
-      peer.on("open", () => {
-        conn = peer.connect(roomId);
-        conn.on("open", () => {
-          initApp("Room ID: " + roomId, "Member: " + userName);
-          document.getElementById("status").className = "status online";
-          conn.on("data", handleData);
-        });
-      });
-    }
-
-    function initApp(title, info) {
-      document.getElementById("authSection").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      document.getElementById("roomTitle").innerText = title;
-      document.getElementById("userRole").innerText = info;
-    }
-
-    // === TODO ===
-    function addTodo() {
-      const title = document.getElementById("todoTitle").value.trim();
-      const desc = document.getElementById("todoDesc").value.trim();
-      if (!title) return alert("Judul tidak boleh kosong");
-      const todo = { type: "todo", id: Date.now(), title, desc, user: userName, comments: [] };
-      renderTodo(todo);
-      saveTodos();
-      broadcast(todo);
-      document.getElementById("todoTitle").value = "";
-      document.getElementById("todoDesc").value = "";
-    }
-
-    function renderTodo(todo) {
-      const div = document.createElement("div");
-      div.className = "todo-item";
-      div.id = "todo-" + todo.id;
-      div.innerHTML = `
-        <strong>${todo.title}</strong><br>
-        ${todo.desc}
-        <div class="todo-meta">oleh ${todo.user}</div>
-        <div class="comment-box" id="comments-${todo.id}">
-          <h4>Komentar</h4>
-          <div class="comment-list"></div>
-          <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
-          <input type="file" id="photoInput-${todo.id}" accept="image/*" onchange="previewPhoto(${todo.id})">
-          <div id="preview-${todo.id}" class="preview-box hidden"></div>
-          <button onclick="sendComment(${todo.id})">Kirim</button>
-        </div>
-      `;
-      document.getElementById("todoList").appendChild(div);
-      if (todo.comments) todo.comments.forEach(c => appendComment(c));
-    }
-
-    function previewPhoto(todoId) {
-      const fileInput = document.getElementById("photoInput-" + todoId);
-      const previewBox = document.getElementById("preview-" + todoId);
-      const file = fileInput.files[0];
-
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto">`;
-          previewBox.classList.remove("hidden");
-        };
-        reader.readAsDataURL(file);
+    let savedTodos = localStorage.getItem("todos");
+    if (savedTodos) {
+      if (confirm("Data lama ditemukan. Muat data lama?")) {
+        JSON.parse(savedTodos).forEach(todo => renderTodo(todo));
       } else {
-        previewBox.innerHTML = "";
-        previewBox.classList.add("hidden");
+        localStorage.removeItem("todos");
       }
     }
 
-    function sendComment(todoId) {
-      const text = document.getElementById("commentInput-" + todoId).value.trim();
-      const file = document.getElementById("photoInput-" + todoId).files[0];
-      if (!text && !file) return;
+    peer.on("connection", c => {
+      connections.push(c);
+      c.on("data", handleData);
+    });
+  });
+}
 
-      if (text) {
-        const msg = { type: "comment", todoId, text, user: userName };
-        appendComment(msg);
-        saveTodos();
-        broadcast(msg);
-        document.getElementById("commentInput-" + todoId).value = "";
-      }
+function joinRoom() {
+  userName = document.getElementById("userName").value.trim();
+  roomId = document.getElementById("roomIdInput").value.trim();
+  if (!userName || !roomId) return alert("Isi nama dan Room ID!");
+  role = "member";
+  saveSession();
+  autoJoinRoom();
+}
 
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const msg = { type: "photo", todoId, data: reader.result, user: userName };
-          appendComment(msg);
-          saveTodos();
-          broadcast(msg);
-          document.getElementById("photoInput-" + todoId).value = "";
-          document.getElementById("preview-" + todoId).innerHTML = "";
-          document.getElementById("preview-" + todoId).classList.add("hidden");
-        };
-        reader.readAsDataURL(file);
-      }
-    }
+function autoJoinRoom() {
+  peer = new Peer();
+  peer.on("open", () => {
+    conn = peer.connect(roomId);
+    conn.on("open", () => {
+      initApp("Room ID: " + roomId, "Member: " + userName);
+      document.getElementById("status").className = "status online";
 
-    function appendComment(msg) {
-      const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
-      if (!list) return;
-      const div = document.createElement("div");
-      div.className = "comment";
-      if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-      else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
-      list.appendChild(div);
+      // Kirim permintaan data terbaru ke mentor
+      conn.send({ type: "requestData" });
 
-      let todos = JSON.parse(localStorage.getItem("todos") || "[]");
-      todos = todos.map(t => {
-        if (t.id === msg.todoId) {
-          t.comments = t.comments || [];
-          t.comments.push(msg);
-        }
-        return t;
-      });
-      localStorage.setItem("todos", JSON.stringify(todos));
-    }
+      conn.on("data", handleData);
+    });
+  });
+}
 
-    function broadcast(data) {
-      if (role === "mentor") connections.forEach(c => c.send(data));
-      else if (conn) conn.send(data);
-    }
+function initApp(title, info) {
+  document.getElementById("authSection").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("roomTitle").innerText = title;
+  document.getElementById("userRole").innerText = info;
+}
 
-    function handleData(data) {
-      if (data.type === "todo") renderTodo(data);
-      if (data.type === "comment" || data.type === "photo") appendComment(data);
-    }
+// === TODO ===
+function addTodo() {
+  const title = document.getElementById("todoTitle").value.trim();
+  const desc = document.getElementById("todoDesc").value.trim();
+  if (!title) return alert("Judul tidak boleh kosong");
+  const todo = { type: "todo", id: Date.now(), title, desc, user: userName, comments: [] };
+  renderTodo(todo);
+  saveTodos();
+  broadcast(todo);
+  document.getElementById("todoTitle").value = "";
+  document.getElementById("todoDesc").value = "";
+}
 
-    function saveTodos() {
-      if (role === "mentor") {
-        const todos = [];
-        document.querySelectorAll(".todo-item").forEach(div => {
-          const id = parseInt(div.id.replace("todo-", ""));
-          const title = div.querySelector("strong").innerText;
-          const desc = div.childNodes[2].textContent.trim();
-          const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
-          const comments = [];
-          div.querySelectorAll(".comment").forEach(c => {
-            const img = c.querySelector("img");
-            if (img) comments.push({ type: "photo", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), data: img.src });
-            else comments.push({ type: "comment", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "" });
-          });
-          todos.push({ type: "todo", id, title, desc, user, comments });
-        });
-        localStorage.setItem("todos", JSON.stringify(todos));
-      }
-    }
+function renderTodo(todo) {
+  // jika sudah ada di DOM, jangan render ulang
+  if (document.getElementById("todo-" + todo.id)) return;
 
-    function logout() {
-      clearSession();
-      location.reload();
-    }
-  </script>
+  const div = document.createElement("div");
+  div.className = "todo-item";
+  div.id = "todo-" + todo.id;
+  div.innerHTML = `
+    <strong>${todo.title}</strong><br>
+    ${todo.desc}
+    <div class="todo-meta">oleh ${todo.user}</div>
+    <div class="comment-box" id="comments-${todo.id}">
+      <h4>Komentar</h4>
+      <div class="comment-list"></div>
+      <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
+      <input type="file" id="photoInput-${todo.id}" accept="image/*" onchange="previewPhoto(${todo.id})">
+      <div id="preview-${todo.id}" class="preview-box hidden"></div>
+      <button onclick="sendComment(${todo.id})">Kirim</button>
+    </div>
+  `;
+  document.getElementById("todoList").appendChild(div);
+  if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
+}
+
+function previewPhoto(todoId) {
+  const fileInput = document.getElementById("photoInput-" + todoId);
+  const previewBox = document.getElementById("preview-" + todoId);
+  const file = fileInput.files[0];
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      previewBox.innerHTML = `<img src="${reader.result}" alt="Preview Foto">`;
+      previewBox.classList.remove("hidden");
+    };
+    reader.readAsDataURL(file);
+  } else {
+    previewBox.innerHTML = "";
+    previewBox.classList.add("hidden");
+  }
+}
+
+function sendComment(todoId) {
+  const text = document.getElementById("commentInput-" + todoId).value.trim();
+  const file = document.getElementById("photoInput-" + todoId).files[0];
+  if (!text && !file) return;
+
+  if (text) {
+    const msg = { type: "comment", todoId, text, user: userName };
+    appendComment(msg);
+    saveTodos();
+    broadcast(msg);
+    document.getElementById("commentInput-" + todoId).value = "";
+  }
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const msg = { type: "photo", todoId, data: reader.result, user: userName };
+      appendComment(msg);
+      saveTodos();
+      broadcast(msg);
+      document.getElementById("photoInput-" + todoId).value = "";
+      document.getElementById("preview-" + todoId).innerHTML = "";
+      document.getElementById("preview-" + todoId).classList.add("hidden");
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function appendComment(msg, save = true) {
+  const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
+  if (!list) return;
+  const div = document.createElement("div");
+  div.className = "comment";
+  if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+  else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
+  list.appendChild(div);
+
+  if (save) saveTodos();
+}
+
+function broadcast(data) {
+  if (role === "mentor") connections.forEach(c => c.send(data));
+  else if (conn) conn.send(data);
+}
+
+function handleData(data) {
+  if (data.type === "todo") {
+    renderTodo(data);
+    saveTodos();
+  }
+  if (data.type === "comment" || data.type === "photo") {
+    appendComment(data);
+    saveTodos();
+  }
+  if (data.type === "allTodos") {
+    data.todos.forEach(todo => renderTodo(todo));
+    saveTodos();
+  }
+}
+
+function saveTodos() {
+  const todos = [];
+  document.querySelectorAll(".todo-item").forEach(div => {
+    const id = parseInt(div.id.replace("todo-", ""));
+    const title = div.querySelector("strong").innerText;
+    const desc = div.childNodes[2].textContent.trim();
+    const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
+    const comments = [];
+    div.querySelectorAll(".comment").forEach(c => {
+      const img = c.querySelector("img");
+      if (img) comments.push({ type: "photo", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), data: img.src });
+      else comments.push({ type: "comment", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "" });
+    });
+    todos.push({ type: "todo", id, title, desc, user, comments });
+  });
+  localStorage.setItem("todos", JSON.stringify(todos));
+}
+
+function loadLocalTodos() {
+  const saved = localStorage.getItem("todos");
+  if (saved) JSON.parse(saved).forEach(todo => renderTodo(todo));
+}
+
+function logout() {
+  clearSession();
+  localStorage.removeItem("todos");
+  location.reload();
+}
+</script>
+
 </body>
 </html>
