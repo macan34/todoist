@@ -138,31 +138,39 @@
   function createRoom() {
     userName = document.getElementById('userName').value;
     roomId = document.getElementById('roomName').value;
+
     peer = new Peer(roomId, {
       host: '0.peerjs.com', port: 443, secure: true,
-      config: { 'iceServers': [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]}
+      config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
     });
+
     peer.on('connection', c => {
       conn = c;
       setupConnection();
     });
+
     startApp();
+
+    // 🔥 tampilkan ID Room di layar + popup
+    document.getElementById('todoTitle').innerText = `Todo List (Room ID: ${roomId})`;
+    alert(`Room berhasil dibuat!\nBagikan ID ini ke member: ${roomId}`);
   }
 
   function joinRoom() {
     userName = document.getElementById('userName').value;
     roomId = document.getElementById('roomId').value;
+
     peer = new Peer(null, {
       host: '0.peerjs.com', port: 443, secure: true,
-      config: { 'iceServers': [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]}
+      config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
     });
+
     conn = peer.connect(roomId);
     conn.on('open', setupConnection);
     startApp();
+
+    // tampilkan info room di judul
+    document.getElementById('todoTitle').innerText = `Todo List (Room ID: ${roomId})`;
   }
 
   function setupConnection() {
