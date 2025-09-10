@@ -24,7 +24,6 @@
     .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
     .online { background: #4caf50; color: white; }
     .offline { background: #f44336; color: white; }
-    @media (max-width:600px){ .container{padding:10px;} }
   </style>
 </head>
 <body>
@@ -70,23 +69,51 @@
     let peer, conn, connections = [];
     let userName = "", roomId = "", role = "";
 
+    // === AUTO LOGIN ===
+    window.addEventListener("load", () => {
+      const savedSession = localStorage.getItem("session");
+      if (savedSession) {
+        const s = JSON.parse(savedSession);
+        userName = s.userName;
+        roomId = s.roomId;
+        role = s.role;
+        if (role === "mentor") {
+          autoCreateRoom();
+        } else if (role === "member") {
+          autoJoinRoom();
+        }
+      }
+    });
+
+    function saveSession() {
+      localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
+    }
+
+    function clearSession() {
+      localStorage.removeItem("session");
+    }
+
     // === AUTH ===
     function createRoom() {
       userName = document.getElementById("userName").value.trim();
       if (!userName) return alert("Isi nama Anda!");
       role = "mentor";
       roomId = "room-" + Math.floor(Math.random() * 10000);
+      saveSession();
+      autoCreateRoom();
+    }
+
+    function autoCreateRoom() {
       peer = new Peer(roomId);
       peer.on("open", id => {
         initApp("Room ID: " + id, "Mentor: " + userName);
         document.getElementById("status").className = "status online";
         document.getElementById("addTodoForm").classList.remove("hidden");
 
-        // cek data lama di localStorage
+        // popup data lama
         let savedTodos = localStorage.getItem("todos");
         if (savedTodos) {
-          let keep = confirm("Data lama ditemukan. Muat data lama?");
-          if (keep) {
+          if (confirm("Data lama ditemukan. Muat data lama?")) {
             JSON.parse(savedTodos).forEach(todo => renderTodo(todo));
           } else {
             localStorage.removeItem("todos");
@@ -105,6 +132,11 @@
       roomId = document.getElementById("roomIdInput").value.trim();
       if (!userName || !roomId) return alert("Isi nama dan Room ID!");
       role = "member";
+      saveSession();
+      autoJoinRoom();
+    }
+
+    function autoJoinRoom() {
       peer = new Peer();
       peer.on("open", () => {
         conn = peer.connect(roomId);
@@ -153,14 +185,9 @@
         </div>
       `;
       document.getElementById("todoList").appendChild(div);
-
-      // render komentar lama kalau ada
-      if (todo.comments) {
-        todo.comments.forEach(c => appendComment(c));
-      }
+      if (todo.comments) todo.comments.forEach(c => appendComment(c));
     }
 
-    // === KOMENTAR ===
     function sendComment(todoId) {
       const text = document.getElementById("commentInput-" + todoId).value.trim();
       const file = document.getElementById("photoInput-" + todoId).files[0];
@@ -192,14 +219,10 @@
       if (!list) return;
       const div = document.createElement("div");
       div.className = "comment";
-      if (msg.type === "comment") {
-        div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-      } else if (msg.type === "photo") {
-        div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
-      }
+      if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+      else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
       list.appendChild(div);
 
-      // update ke localStorage
       let todos = JSON.parse(localStorage.getItem("todos") || "[]");
       todos = todos.map(t => {
         if (t.id === msg.todoId) {
@@ -211,13 +234,9 @@
       localStorage.setItem("todos", JSON.stringify(todos));
     }
 
-    // === SYNC ===
     function broadcast(data) {
-      if (role === "mentor") {
-        connections.forEach(c => c.send(data));
-      } else if (conn) {
-        conn.send(data);
-      }
+      if (role === "mentor") connections.forEach(c => c.send(data));
+      else if (conn) conn.send(data);
     }
 
     function handleData(data) {
@@ -235,7 +254,9 @@
           const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
           const comments = [];
           div.querySelectorAll(".comment").forEach(c => {
-            comments.push({ user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "", type: "comment" });
+            const img = c.querySelector("img");
+            if (img) comments.push({ type: "photo", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), data: img.src });
+            else comments.push({ type: "comment", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "" });
           });
           todos.push({ type: "todo", id, title, desc, user, comments });
         });
@@ -243,7 +264,10 @@
       }
     }
 
-    function logout() { location.reload(); }
+    function logout() {
+      clearSession();
+      location.reload();
+    }
   </script>
 </body>
 </html>
