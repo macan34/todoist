@@ -6,143 +6,166 @@
   <title>Todopro</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 0;
-    }
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 0;
+  }
 
-    header {
-      text-align: center;
-      padding: 20px;
-      background: #4cafef;
-      color: white;
-    }
+  header {
+    text-align: center;
+    padding: 20px;
+    background: #4cafef;
+    color: white;
+  }
 
-    .container {
-      max-width: 600px;
-      margin: 20px auto;
-      padding: 10px;
-    }
+  .container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 10px;
+  }
 
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      padding: 15px;
-      margin-bottom: 15px;
-    }
+  .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 15px;
+    margin-bottom: 15px;
+  }
 
-    input, button {
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      margin: 5px 0;
-    }
+  input, button {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin: 5px 0;
+  }
 
-    button {
-      background: #4cafef;
-      color: white;
-      cursor: pointer;
-      border: none;
-    }
+  button {
+    background: #4cafef;
+    color: white;
+    cursor: pointer;
+    border: none;
+  }
 
-    button:hover {
-      background: #379ed7;
-    }
+  button:hover {
+    background: #379ed7;
+  }
 
-    .hidden { display: none; }
+  .hidden { display: none; }
 
-    /* === STYLING TODO ITEM === */
-    .todo-item {
-      background: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 12px;
-      margin: 10px 0;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-      position: relative;
-    }
+  /* === STYLING TODO ITEM === */
+  .todo-item {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 12px;
+    margin: 10px 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    position: relative;
+  }
 
-    .todo-item strong { font-size: 1.1rem; }
+  .todo-item strong { font-size: 1.1rem; }
 
-    .todo-meta {
-      font-size: 0.8rem;
-      color: #666;
-      margin-top: 4px;
-    }
+  .todo-meta {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 4px;
+  }
 
-    /* === TOMBOL HAPUS TODO === */
-    .delete-btn {
-      background: #ff4d4d;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
-      font-size: 16px;
-      cursor: pointer;
-      float: right;
-      margin-top: -5px;
-      transition: background 0.2s;
-    }
+  /* === TOMBOL HAPUS TODO === */
+  .delete-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    float: right;
+    margin-top: -5px;
+    transition: background 0.2s;
+  }
 
-    .delete-btn:hover { background: #cc0000; }
+  .delete-btn:hover { background: #cc0000; }
 
-    /* === KOMENTAR BOX === */
-    .comment-box {
-      background: #f9f9f9;
-      border-radius: 10px;
-      margin-top: 10px;
-      padding: 8px;
-      border: 1px solid #ddd;
-    }
+  /* === KOMENTAR BOX === */
+  .comment-box {
+    background: #f9f9f9;
+    border-radius: 10px;
+    margin-top: 10px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    overflow: hidden; /* Tambahan agar konten tidak keluar */
+  }
 
-    .comment {
-      background: #fff;
-      border-radius: 8px;
-      padding: 6px;
-      margin: 5px 0;
-      position: relative;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
+  .comment {
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+    margin: 5px 0;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
 
-    /* === TOMBOL HAPUS KOMENTAR === */
-    .delete-comment-btn {
-      background: none;
-      border: none;
-      color: #ff4d4d;
-      font-size: 14px;
-      cursor: pointer;
-      position: absolute;
-      top: 4px;
-      right: 6px;
-    }
+  /* === MEDIA DALAM KOMENTAR === */
+  .comment img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: block;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
 
-    .delete-comment-btn:hover { color: #cc0000; }
+  .comment iframe,
+  .comment video {
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    display: block;
+    border-radius: 8px;
+    margin-top: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
 
-    /* === PREVIEW FOTO === */
-    .preview-box {
-      margin-top: 8px;
-      text-align: center;
-    }
+  /* === TOMBOL HAPUS KOMENTAR === */
+  .delete-comment-btn {
+    background: none;
+    border: none;
+    color: #ff4d4d;
+    font-size: 14px;
+    cursor: pointer;
+    position: absolute;
+    top: 4px;
+    right: 6px;
+  }
 
-    .preview-box img {
-      max-width: 100%;
-      max-height: 150px;
-      border-radius: 10px;
-      border: 2px solid #ddd;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
+  .delete-comment-btn:hover { color: #cc0000; }
 
-    /* === RESPONSIVE === */
-    @media (max-width: 600px) {
-      .todo-item { font-size: 0.9rem; }
-      .delete-btn { width: 24px; height: 24px; font-size: 14px; }
-    }
-  </style>
+  /* === PREVIEW FOTO === */
+  .preview-box {
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .preview-box img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 600px) {
+    .todo-item { font-size: 0.9rem; }
+    .delete-btn { width: 24px; height: 24px; font-size: 14px; }
+  }
+</style>
+
 </head>
 
 <body>
