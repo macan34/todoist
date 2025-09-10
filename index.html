@@ -3,247 +3,198 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Collaborative Todo List</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+  <title>Todo Kolaborasi</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg,#667eea,#764ba2);
-      margin: 0;
-      padding: 0;
-      color: #333;
-    }
-    .container { max-width: 900px; margin: auto; padding: 15px; }
-    .header { text-align: center; color: white; margin-bottom: 20px; }
-    .auth-section, .todo-container {
-      background: white; border-radius: 12px; padding: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-    }
-    h1 { font-size: 1.8rem; margin-bottom: 10px; }
-    h2 { font-size: 1.3rem; margin-bottom: 15px; }
-    .input-group { margin-bottom: 15px; }
-    label { display:block; margin-bottom:5px; font-weight:bold; }
-    input, textarea {
-      width: 100%; padding: 10px; border-radius: 8px;
-      border: 1px solid #ccc; font-size: 1rem;
-    }
-    button {
-      padding: 10px 20px; border: none; border-radius: 8px;
-      cursor: pointer; font-weight: bold;
-    }
-    .btn-primary { background: #667eea; color: white; }
-    .btn-success { background: #28a745; color: white; }
-    .btn-danger { background: #dc3545; color: white; }
-    .todo-item {
-      border: 1px solid #ddd; border-radius: 8px;
-      padding: 12px; margin-bottom: 10px; background: #fafafa;
-    }
-    .todo-title { font-weight: bold; }
-    .comment-section { margin-top: 20px; border-top: 2px solid #eee; padding-top: 15px; }
-    .comment-item {
-      background: #f9f9f9; padding: 10px;
-      border-radius: 8px; margin-bottom: 8px;
-    }
-    .comment-author { font-weight: bold; color: #667eea; }
-    .photo-item img { max-width: 100%; border-radius: 6px; margin-top: 5px; }
-    .status-indicator {
-      display:inline-block; padding: 5px 10px;
-      border-radius: 12px; font-size: .9rem; color: white;
-    }
-    .online { background: #28a745; }
-    .offline { background: #6c757d; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f8; }
+    header { background: #4a90e2; color: white; padding: 12px; text-align: center; }
+    .container { padding: 16px; max-width: 800px; margin: auto; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    h2,h3 { margin-top: 0; }
+    input, button { padding: 10px; margin: 6px 0; width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
+    button { background: #4a90e2; color: white; border: none; cursor: pointer; }
+    button:hover { background: #357ABD; }
+    .hidden { display: none; }
+    .todo-item { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+    .todo-meta { font-size: 12px; color: #666; margin-bottom: 8px; }
+    .comment-box { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 8px; }
+    .comment { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 14px; }
+    .comment strong { color: #4a90e2; }
+    .comment img { max-width: 120px; border-radius: 6px; display: block; margin-top: 4px; }
+    .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
+    .online { background: #4caf50; color: white; }
+    .offline { background: #f44336; color: white; }
+    @media (max-width:600px){ .container{padding:10px;} }
   </style>
 </head>
 <body>
+  <header>
+    <h1>Todo Kolaborasi</h1>
+  </header>
   <div class="container">
-    <div class="header">
-      <h1>📝 Collaborative Todo List</h1>
-      <p>Kelola tugas bersama tim</p>
-    </div>
-
-    <!-- Auth Section -->
-    <div id="authSection" class="auth-section">
-      <h2>Pilih Role</h2>
-      <div class="input-group">
-        <label>Nama Anda</label>
-        <input type="text" id="userName" placeholder="Masukkan nama Anda">
-      </div>
-      <button class="btn-success" onclick="chooseRole('mentor')">👨‍🏫 Saya Mentor</button>
-      <button class="btn-primary" onclick="chooseRole('member')">👨‍🎓 Saya Member</button>
-
-      <div id="mentorForm" style="display:none; margin-top:15px;">
-        <div class="input-group">
-          <label>Nama Room</label>
-          <input type="text" id="roomName" placeholder="Masukkan nama room">
-        </div>
-        <button class="btn-success" onclick="createRoom()">Buat Room</button>
-      </div>
-
-      <div id="memberForm" style="display:none; margin-top:15px;">
-        <div class="input-group">
-          <label>ID Room</label>
-          <input type="text" id="roomId" placeholder="Masukkan ID room">
-        </div>
-        <button class="btn-primary" onclick="joinRoom()">Gabung Room</button>
+    <!-- Login Section -->
+    <div id="authSection" class="card">
+      <h2>Masuk</h2>
+      <input type="text" id="userName" placeholder="Nama Anda">
+      <div style="margin-top:10px;">
+        <button onclick="createRoom()">Buat Room (Mentor)</button>
+        <input type="text" id="roomIdInput" placeholder="Masukkan Room ID untuk Join">
+        <button onclick="joinRoom()">Gabung Room (Member)</button>
       </div>
     </div>
 
-    <!-- Todo Section -->
-    <div id="todoContainer" class="todo-container" style="display:none;">
-      <h2 id="todoTitle">Todo List</h2>
-      <div id="connectionStatus" class="status-indicator offline">Offline</div>
-      <button class="btn-danger" onclick="logout()">Keluar</button>
-
-      <!-- Add Task (Mentor only) -->
-      <div id="taskForm" style="margin-top:20px; display:none;">
-        <div class="input-group">
-          <label>Judul Tugas</label>
-          <input type="text" id="taskTitle" placeholder="Masukkan judul tugas">
-        </div>
-        <div class="input-group">
-          <label>Deskripsi</label>
-          <textarea id="taskDesc" placeholder="Masukkan deskripsi"></textarea>
-        </div>
-        <button class="btn-success" onclick="addTask()">Tambah Tugas</button>
+    <!-- Main App -->
+    <div id="app" class="hidden">
+      <div class="card">
+        <h2 id="roomTitle">Room</h2>
+        <p id="userRole"></p>
+        <p>Status: <span id="status" class="status offline">Offline</span></p>
       </div>
 
-      <!-- Todo List -->
-      <div id="todoList"></div>
-
-      <!-- Comment Section (all members) -->
-      <div class="comment-section">
-        <h3>Komentar & Foto</h3>
-        <textarea id="commentText" placeholder="Tulis komentar..."></textarea>
-        <input type="file" id="photoInput" accept="image/*">
-        <button class="btn-primary" onclick="sendComment()">Kirim</button>
-        <div id="commentsList"></div>
+      <div id="todoSection" class="card">
+        <h3>Daftar Tugas</h3>
+        <!-- Form tambah hanya untuk mentor -->
+        <div id="addTodoForm" class="hidden">
+          <input type="text" id="todoTitle" placeholder="Judul Todo">
+          <input type="text" id="todoDesc" placeholder="Deskripsi">
+          <button onclick="addTodo()">Tambah</button>
+        </div>
+        <div id="todoList"></div>
       </div>
+
+      <button onclick="logout()" style="background:#f44336;">Keluar</button>
     </div>
   </div>
 
-<script>
-  let peer, conn, role, userName, roomId;
+  <script>
+    let peer, conn, connections = [];
+    let userName = "", roomId = "", role = "";
 
-  function chooseRole(selectedRole) {
-    role = selectedRole;
-    if (role === 'mentor') {
-      document.getElementById('mentorForm').style.display = 'block';
-      document.getElementById('memberForm').style.display = 'none';
-    } else {
-      document.getElementById('mentorForm').style.display = 'none';
-      document.getElementById('memberForm').style.display = 'block';
+    // === AUTH ===
+    function createRoom() {
+      userName = document.getElementById("userName").value.trim();
+      if (!userName) return alert("Isi nama Anda!");
+      role = "mentor";
+      roomId = "room-" + Math.floor(Math.random() * 10000);
+      peer = new Peer(roomId);
+      peer.on("open", id => {
+        initApp("Room ID: " + id, "Mentor: " + userName);
+        document.getElementById("status").className = "status online";
+        document.getElementById("addTodoForm").classList.remove("hidden");
+        peer.on("connection", c => {
+          connections.push(c);
+          c.on("data", handleData);
+        });
+      });
     }
-  }
 
-  function createRoom() {
-    userName = document.getElementById('userName').value;
-    roomId = document.getElementById('roomName').value;
-
-    peer = new Peer(roomId, {
-      host: '0.peerjs.com', port: 443, secure: true,
-      config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
-    });
-
-    peer.on('connection', c => {
-      conn = c;
-      setupConnection();
-    });
-
-    startApp();
-
-    // 🔥 tampilkan ID Room di layar + popup
-    document.getElementById('todoTitle').innerText = `Todo List (Room ID: ${roomId})`;
-    alert(`Room berhasil dibuat!\nBagikan ID ini ke member: ${roomId}`);
-  }
-
-  function joinRoom() {
-    userName = document.getElementById('userName').value;
-    roomId = document.getElementById('roomId').value;
-
-    peer = new Peer(null, {
-      host: '0.peerjs.com', port: 443, secure: true,
-      config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
-    });
-
-    conn = peer.connect(roomId);
-    conn.on('open', setupConnection);
-    startApp();
-
-    // tampilkan info room di judul
-    document.getElementById('todoTitle').innerText = `Todo List (Room ID: ${roomId})`;
-  }
-
-  function setupConnection() {
-    document.getElementById('connectionStatus').textContent = 'Online';
-    document.getElementById('connectionStatus').className = 'status-indicator online';
-    conn.on('data', data => handleData(data));
-  }
-
-  function startApp() {
-    document.getElementById('authSection').style.display = 'none';
-    document.getElementById('todoContainer').style.display = 'block';
-    if (role === 'mentor') document.getElementById('taskForm').style.display = 'block';
-  }
-
-  function addTask() {
-    const title = document.getElementById('taskTitle').value;
-    const desc = document.getElementById('taskDesc').value;
-    const task = { type: 'task', title, desc };
-    renderTask(task);
-    broadcast(task);
-  }
-
-  function sendComment() {
-    const text = document.getElementById('commentText').value;
-    const fileInput = document.getElementById('photoInput');
-    if (text.trim() === '' && fileInput.files.length === 0) return;
-
-    const comment = { type: 'comment', user: userName, text };
-    if (fileInput.files.length > 0) {
-      const reader = new FileReader();
-      reader.onload = e => {
-        comment.photo = e.target.result;
-        renderComment(comment);
-        broadcast(comment);
-      };
-      reader.readAsDataURL(fileInput.files[0]);
-    } else {
-      renderComment(comment);
-      broadcast(comment);
+    function joinRoom() {
+      userName = document.getElementById("userName").value.trim();
+      roomId = document.getElementById("roomIdInput").value.trim();
+      if (!userName || !roomId) return alert("Isi nama dan Room ID!");
+      role = "member";
+      peer = new Peer();
+      peer.on("open", () => {
+        conn = peer.connect(roomId);
+        conn.on("open", () => {
+          initApp("Room ID: " + roomId, "Member: " + userName);
+          document.getElementById("status").className = "status online";
+          conn.on("data", handleData);
+        });
+      });
     }
-    document.getElementById('commentText').value = '';
-    fileInput.value = '';
-  }
 
-  function broadcast(data) {
-    if (conn && conn.open) conn.send(data);
-  }
-
-  function handleData(data) {
-    if (data.type === 'task') renderTask(data);
-    if (data.type === 'comment') renderComment(data);
-  }
-
-  function renderTask(task) {
-    const div = document.createElement('div');
-    div.className = 'todo-item';
-    div.innerHTML = `<div class="todo-title">${task.title}</div>
-                     <div>${task.desc}</div>`;
-    document.getElementById('todoList').appendChild(div);
-  }
-
-  function renderComment(comment) {
-    const div = document.createElement('div');
-    div.className = 'comment-item';
-    div.innerHTML = `<div class="comment-author">${comment.user}</div>
-                     <div>${comment.text || ''}</div>`;
-    if (comment.photo) {
-      div.innerHTML += `<div class="photo-item"><img src="${comment.photo}"></div>`;
+    function initApp(title, info) {
+      document.getElementById("authSection").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      document.getElementById("roomTitle").innerText = title;
+      document.getElementById("userRole").innerText = info;
     }
-    document.getElementById('commentsList').appendChild(div);
-  }
 
-  function logout() { location.reload(); }
-</script>
+    // === TODO ===
+    function addTodo() {
+      const title = document.getElementById("todoTitle").value.trim();
+      const desc = document.getElementById("todoDesc").value.trim();
+      if (!title) return alert("Judul tidak boleh kosong");
+      const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
+      renderTodo(todo);
+      broadcast(todo);
+      document.getElementById("todoTitle").value = "";
+      document.getElementById("todoDesc").value = "";
+    }
+
+    function renderTodo(todo) {
+      const div = document.createElement("div");
+      div.className = "todo-item";
+      div.id = "todo-" + todo.id;
+      div.innerHTML = `
+        <strong>${todo.title}</strong><br>
+        ${todo.desc}
+        <div class="todo-meta">oleh ${todo.user}</div>
+        <div class="comment-box" id="comments-${todo.id}">
+          <h4>Komentar</h4>
+          <div class="comment-list"></div>
+          <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
+          <input type="file" id="photoInput-${todo.id}" accept="image/*">
+          <button onclick="sendComment(${todo.id})">Kirim</button>
+        </div>
+      `;
+      document.getElementById("todoList").appendChild(div);
+    }
+
+    // === KOMENTAR ===
+    function sendComment(todoId) {
+      const text = document.getElementById("commentInput-" + todoId).value.trim();
+      const file = document.getElementById("photoInput-" + todoId).files[0];
+      if (!text && !file) return;
+
+      if (text) {
+        const msg = { type: "comment", todoId, text, user: userName };
+        appendComment(msg);
+        broadcast(msg);
+        document.getElementById("commentInput-" + todoId).value = "";
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const msg = { type: "photo", todoId, data: reader.result, user: userName };
+          appendComment(msg);
+          broadcast(msg);
+        };
+        reader.readAsDataURL(file);
+        document.getElementById("photoInput-" + todoId).value = "";
+      }
+    }
+
+    function appendComment(msg) {
+      const list = document.querySelector("#comments-" + msg.todoId + " .comment-list");
+      if (!list) return;
+      const div = document.createElement("div");
+      div.className = "comment";
+      if (msg.type === "comment") {
+        div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+      } else if (msg.type === "photo") {
+        div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
+      }
+      list.appendChild(div);
+    }
+
+    // === SYNC ===
+    function broadcast(data) {
+      if (role === "mentor") {
+        connections.forEach(c => c.send(data));
+      } else if (conn) {
+        conn.send(data);
+      }
+    }
+
+    function handleData(data) {
+      if (data.type === "todo") renderTodo(data);
+      if (data.type === "comment" || data.type === "photo") appendComment(data);
+    }
+
+    function logout() { location.reload(); }
+  </script>
 </body>
 </html>
