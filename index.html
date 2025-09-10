@@ -3,168 +3,228 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Room Tugas</title>
+  <title>Todo Kolaborasi</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; }
-    .container { max-width: 600px; margin: auto; padding: 10px; }
-    .todo-item { border:1px solid #ddd; padding:10px; border-radius:8px; margin-bottom:10px; background:#fafafa; }
-    .todo-meta { font-size: 0.8em; color:#555; }
-    .comment-section { margin-top: 8px; }
-    .comment { font-size: 0.9em; margin-bottom: 5px; background:#fff; padding:5px; border-radius:6px; }
-    img { max-width: 100%; border-radius:6px; }
-    .hidden { display:none; }
-    .status { font-weight: bold; margin: 5px 0; }
-    .status.online { color: green; }
-    .status.offline { color: red; }
-    textarea { width: 100%; resize: none; }
-    button { margin-top: 5px; padding: 6px 10px; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f8; }
+    header { background: #4a90e2; color: white; padding: 12px; text-align: center; }
+    .container { padding: 16px; max-width: 800px; margin: auto; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    h2,h3 { margin-top: 0; }
+    input, textarea { 
+      padding: 10px; margin: 6px 0; width: 100%; 
+      box-sizing: border-box; border-radius: 8px; 
+      border: 1px solid #ccc; font-size: 15px;
+    }
+    button { 
+      background: #4a90e2; color: white; border: none; 
+      cursor: pointer; padding: 10px 14px; border-radius: 8px;
+      margin: 5px 4px 0 0; font-size: 15px;
+    }
+    button:hover { background: #357ABD; }
+    .hidden { display: none; }
+    .todo-item { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+    .todo-meta { font-size: 12px; color: #666; margin-bottom: 8px; }
+    .comment-box { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 8px; }
+    .comment { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 14px; }
+    .comment strong { color: #4a90e2; }
+    .comment img { max-width: 120px; border-radius: 6px; display: block; margin-top: 4px; }
+    .status { font-size: 13px; padding: 4px 8px; border-radius: 8px; display: inline-block; }
+    .online { background: #4caf50; color: white; }
+    .offline { background: #f44336; color: white; }
+    .btn-danger { background: #f44336; }
+    .btn-danger:hover { background: #c62828; }
+    @media (max-width:600px){ .container{padding:10px;} button{width:100%; margin:6px 0;} }
   </style>
 </head>
 <body>
+  <header>
+    <h1>Todo Kolaborasi</h1>
+  </header>
   <div class="container">
-    <h2>Room Tugas</h2>
-    <div id="loginForm">
-      <input id="nameInput" placeholder="Nama kamu"><br>
-      <select id="roleInput">
-        <option value="mentor">Mentor</option>
-        <option value="member">Member</option>
-      </select><br>
-      <input id="roomInput" placeholder="Room ID (kosongkan jika mentor)">
-      <button onclick="login()">Masuk</button>
+    <!-- Login Section -->
+    <div id="authSection" class="card">
+      <h2>Masuk</h2>
+      <input type="text" id="userName" placeholder="Nama Anda">
+      <div style="margin-top:10px;">
+        <button onclick="createRoom()">Buat Room (Mentor)</button>
+        <input type="text" id="roomIdInput" placeholder="Masukkan Room ID untuk Join">
+        <button onclick="joinRoom()">Gabung Room (Member)</button>
+      </div>
     </div>
 
+    <!-- Main App -->
     <div id="app" class="hidden">
-      <div id="roomInfo"></div>
-      <div id="status" class="status offline">Offline</div>
-      <div id="addTodoForm" class="hidden">
-        <input id="todoTitle" placeholder="Judul tugas"><br>
-        <textarea id="todoDesc" placeholder="Deskripsi tugas"></textarea><br>
-        <button onclick="addTodo()">Tambah Tugas</button>
-        <button onclick="clearData()">Hapus Semua Data</button>
-        <button onclick="exportData()">📤 Export Data</button>
+      <div class="card">
+        <h2 id="roomTitle">Room</h2>
+        <p id="userRole"></p>
+        <p>Status: <span id="status" class="status offline">Offline</span></p>
       </div>
-      <div id="todoList"></div>
+
+      <div id="todoSection" class="card">
+        <h3>Daftar Tugas</h3>
+        <!-- Form tambah hanya untuk mentor -->
+        <div id="addTodoForm" class="hidden">
+          <input type="text" id="todoTitle" placeholder="Judul tugas">
+          <textarea id="todoDesc" placeholder="Deskripsi tugas"></textarea>
+          <button onclick="addTodo()">Tambah Tugas</button>
+          <button onclick="clearData()" class="btn-danger">Hapus Semua Data</button>
+          <button onclick="exportData()">⬆️ Export Data</button>
+        </div>
+        <div id="todoList"></div>
+      </div>
+
+      <button onclick="logout()" class="btn-danger">Keluar</button>
     </div>
   </div>
 
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script>
     let peer, conn, connections = [];
-    let userName, roomId, role;
+    let userName = "", roomId = "", role = "";
 
     // === SESSION ===
     function saveSession() {
       localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
     }
+
     function loadSession() {
       const s = JSON.parse(localStorage.getItem("session") || "null");
-      if (s) { userName = s.userName; roomId = s.roomId; role = s.role; return true; }
-      return false;
-    }
-
-    function login() {
-      userName = document.getElementById("nameInput").value.trim();
-      role = document.getElementById("roleInput").value;
-      roomId = document.getElementById("roomInput").value.trim();
-      if (!userName) return alert("Nama wajib diisi");
-      saveSession();
-      if (role === "mentor" && !roomId) roomId = "room-" + Math.floor(Math.random() * 100000);
-      startPeer();
-    }
-
-    function startPeer() {
-      if (role === "mentor") {
-        peer = new Peer(roomId);
-        peer.on("open", id => {
-          initApp("Room ID: " + id, "Mentor: " + userName);
-          document.getElementById("addTodoForm").classList.remove("hidden");
-          loadData();
-          peer.on("connection", c => {
-            connections.push(c);
-            c.on("data", handleData);
-          });
-        });
-      } else {
-        peer = new Peer();
-        peer.on("open", () => {
-          // 🔧 FIX: tunda connect sedikit supaya stabil di mobile
-          setTimeout(() => {
-            conn = peer.connect(roomId);
-            conn.on("open", () => {
-              initApp("Room ID: " + roomId, "Member: " + userName);
-              conn.on("data", handleData);
-              loadData();
+      if (s) {
+        userName = s.userName;
+        roomId = s.roomId;
+        role = s.role;
+        if (role === "mentor") {
+          peer = new Peer(roomId);
+          peer.on("open", id => {
+            initApp("Room ID: " + id, "Mentor: " + userName);
+            document.getElementById("status").className = "status online";
+            document.getElementById("addTodoForm").classList.remove("hidden");
+            loadData();
+            peer.on("connection", c => {
+              connections.push(c);
+              c.on("data", handleData);
             });
-          }, 300);
-        });
+          });
+        } else if (role === "member") {
+          peer = new Peer();
+          peer.on("open", () => {
+            setTimeout(() => { // fix mobile race condition
+              conn = peer.connect(roomId);
+              conn.on("open", () => {
+                initApp("Room ID: " + roomId, "Member: " + userName);
+                document.getElementById("status").className = "status online";
+                loadData();
+                conn.on("data", handleData);
+              });
+            }, 300);
+          });
+        }
       }
     }
 
-    function initApp(roomText, userText) {
-      document.getElementById("loginForm").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      document.getElementById("roomInfo").innerText = roomText + " | " + userText;
-      document.getElementById("status").className = "status online";
-    }
-
-    // === DATA LOCAL STORAGE ===
-    function saveData() {
-      const todos = [];
-      document.querySelectorAll(".todo-item").forEach(div => {
-        const id = parseInt(div.id.replace("todo-", ""));
-        const title = div.querySelector("strong").innerText;
-        const desc = div.childNodes[2].textContent.trim();
-        const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
-        const comments = [];
-        div.querySelectorAll(".comment").forEach(c => {
-          const type = c.getAttribute("data-type");
-          const user = c.getAttribute("data-user");
-          if (type === "comment") comments.push({ type, user, text: c.getAttribute("data-text"), todoId:id });
-          if (type === "photo") comments.push({ type, user, data: c.querySelector("img").src, todoId:id });
+    // === AUTH ===
+    function createRoom() {
+      userName = document.getElementById("userName").value.trim();
+      if (!userName) return alert("Isi nama Anda!");
+      role = "mentor";
+      roomId = "room-" + Math.floor(Math.random() * 10000);
+      saveSession();
+      peer = new Peer(roomId);
+      peer.on("open", id => {
+        initApp("Room ID: " + id, "Mentor: " + userName);
+        document.getElementById("status").className = "status online";
+        document.getElementById("addTodoForm").classList.remove("hidden");
+        peer.on("connection", c => {
+          connections.push(c);
+          c.on("data", handleData);
         });
-        todos.push({ id, title, desc, user, comments });
       });
-      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
     }
 
-    function loadData() {
-      const data = JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
-      data.forEach(todo => {
-        renderTodo(todo);
-        todo.comments.forEach(c => appendComment(c));
+    function joinRoom() {
+      userName = document.getElementById("userName").value.trim();
+      roomId = document.getElementById("roomIdInput").value.trim();
+      if (!userName || !roomId) return alert("Isi nama dan Room ID!");
+      role = "member";
+      saveSession();
+      peer = new Peer();
+      peer.on("open", () => {
+        setTimeout(() => {
+          conn = peer.connect(roomId);
+          conn.on("open", () => {
+            initApp("Room ID: " + roomId, "Member: " + userName);
+            document.getElementById("status").className = "status online";
+            loadData();
+            conn.on("data", handleData);
+          });
+        }, 300);
       });
+    }
+
+    function initApp(title, info) {
+      document.getElementById("authSection").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      document.getElementById("roomTitle").innerText = title;
+      document.getElementById("userRole").innerText = info;
+    }
+
+    // === TODO ===
+    function addTodo() {
+      const title = document.getElementById("todoTitle").value.trim();
+      const desc = document.getElementById("todoDesc").value.trim();
+      if (!title) return alert("Judul tidak boleh kosong");
+      const todo = { type: "todo", id: Date.now(), title, desc, user: userName };
+      renderTodo(todo);
+      saveData();
+      broadcast(todo);
+      document.getElementById("todoTitle").value = "";
+      document.getElementById("todoDesc").value = "";
     }
 
     function renderTodo(todo) {
       const div = document.createElement("div");
       div.className = "todo-item";
       div.id = "todo-" + todo.id;
-      div.innerHTML = `<strong>${todo.title}</strong><br>${todo.desc}<div class="todo-meta">oleh ${todo.user}</div>
-      <div class="comment-section" id="comments-${todo.id}">
-        <div class="comment-list"></div>
-        <textarea id="input-${todo.id}" placeholder="Komentar..."></textarea><br>
-        <input type="file" accept="image/*" onchange="sendPhoto(${todo.id}, this)">
-        <button onclick="sendComment(${todo.id})">Kirim</button>
-      </div>`;
+      div.innerHTML = `
+        <strong>${todo.title}</strong><br>
+        ${todo.desc}
+        <div class="todo-meta">oleh ${todo.user}</div>
+        <div class="comment-box" id="comments-${todo.id}">
+          <h4>Komentar</h4>
+          <div class="comment-list"></div>
+          <input type="text" id="commentInput-${todo.id}" placeholder="Tulis komentar...">
+          <input type="file" id="photoInput-${todo.id}" accept="image/*">
+          <button onclick="sendComment(${todo.id})">Kirim</button>
+        </div>
+      `;
       document.getElementById("todoList").appendChild(div);
     }
 
-    function addTodo() {
-      const title = document.getElementById("todoTitle").value.trim();
-      const desc = document.getElementById("todoDesc").value.trim();
-      if (!title) return alert("Judul wajib diisi");
-      const todo = { id: Date.now(), title, desc, user: userName, comments: [] };
-      renderTodo(todo); saveData();
-      broadcast({ type:"addTodo", todo });
-    }
-
+    // === KOMENTAR ===
     function sendComment(todoId) {
-      const text = document.getElementById("input-" + todoId).value.trim();
-      if (!text) return;
-      const msg = { type:"comment", todoId, user:userName, text };
-      appendComment(msg); saveData();
-      broadcast({ type:"comment", msg });
-      document.getElementById("input-" + todoId).value = "";
+      const text = document.getElementById("commentInput-" + todoId).value.trim();
+      const file = document.getElementById("photoInput-" + todoId).files[0];
+      if (!text && !file) return;
+
+      if (text) {
+        const msg = { type: "comment", todoId, text, user: userName };
+        appendComment(msg);
+        saveData();
+        broadcast(msg);
+        document.getElementById("commentInput-" + todoId).value = "";
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const msg = { type: "photo", todoId, data: reader.result, user: userName };
+          appendComment(msg);
+          saveData();
+          broadcast(msg);
+        };
+        reader.readAsDataURL(file);
+        document.getElementById("photoInput-" + todoId).value = "";
+      }
     }
 
     function appendComment(msg) {
@@ -183,50 +243,73 @@
       list.appendChild(div);
     }
 
-    function sendPhoto(todoId, input) {
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const msg = { type:"photo", todoId, user:userName, data:reader.result };
-        appendComment(msg); saveData();
-        broadcast({ type:"photo", msg });
-      };
-      reader.readAsDataURL(file);
+    // === DATA STORAGE ===
+    function saveData() {
+      const todos = [];
+      document.querySelectorAll(".todo-item").forEach(div => {
+        const id = parseInt(div.id.replace("todo-", ""));
+        const title = div.querySelector("strong").innerText;
+        const desc = div.childNodes[2].textContent.trim();
+        const user = div.querySelector(".todo-meta").innerText.replace("oleh ", "");
+        const comments = [];
+        div.querySelectorAll(".comment").forEach(c => {
+          const type = c.getAttribute("data-type");
+          const user = c.getAttribute("data-user");
+          if (type === "comment") {
+            comments.push({ type, user, text: c.getAttribute("data-text"), todoId: id });
+          } else if (type === "photo") {
+            comments.push({ type, user, data: c.querySelector("img").src, todoId: id });
+          }
+        });
+        todos.push({ id, title, desc, user, comments });
+      });
+      localStorage.setItem("todos-" + roomId, JSON.stringify(todos));
+    }
+
+    function loadData() {
+      const data = JSON.parse(localStorage.getItem("todos-" + roomId) || "[]");
+      data.forEach(todo => {
+        renderTodo({ id: todo.id, title: todo.title, desc: todo.desc, user: todo.user });
+        todo.comments.forEach(c => appendComment(c));
+      });
     }
 
     function clearData() {
       if (role !== "mentor") return;
-      if (confirm("Hapus semua data?")) {
-        localStorage.removeItem("todos-" + roomId);
-        document.getElementById("todoList").innerHTML = "";
-        broadcast({ type:"clear" });
-      }
+      if (!confirm("Hapus semua data?")) return;
+      localStorage.removeItem("todos-" + roomId);
+      document.getElementById("todoList").innerHTML = "";
     }
 
     function exportData() {
       const data = localStorage.getItem("todos-" + roomId) || "[]";
-      const blob = new Blob([data], {type:"application/json"});
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([data], { type: "application/json" });
       const a = document.createElement("a");
-      a.href = url; a.download = roomId + "-data.json"; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function handleData(d) {
-      if (d.type === "addTodo") renderTodo(d.todo);
-      if (d.type === "comment" || d.type === "photo") appendComment(d.msg);
-      if (d.type === "clear") document.getElementById("todoList").innerHTML = "";
-      saveData();
+      a.href = URL.createObjectURL(blob);
+      a.download = roomId + "-todos.json";
+      a.click();
     }
 
     function broadcast(data) {
-      connections.forEach(c => c.send(data));
-      if (conn) conn.send(data);
+      if (role === "mentor") {
+        connections.forEach(c => c.send(data));
+      } else if (conn) {
+        conn.send(data);
+      }
     }
 
-    // === AUTO LOGIN ===
-    if (loadSession()) startPeer();
+    function handleData(data) {
+      if (data.type === "todo") renderTodo(data);
+      if (data.type === "comment" || data.type === "photo") appendComment(data);
+      saveData();
+    }
+
+    function logout() {
+      localStorage.removeItem("session");
+      location.reload();
+    }
+
+    window.onload = loadSession;
   </script>
 </body>
 </html>
