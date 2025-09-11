@@ -918,19 +918,27 @@ function saveTodos() {
     const user = div.querySelector(".todo-meta").innerText.replace("👤 ", "");
     const completed = div.classList.contains('completed');
     
+    // Ambil data dari localStorage jika ada untuk preserve member checks
+    const existingTodos = JSON.parse(localStorage.getItem("todos") || "[]");
+    const existingTodo = existingTodos.find(t => t.id === id);
+    
     // Ambil data completion
-    let completedBy = null;
+    let completedBy = [];
     let completedAt = null;
+    let memberChecks = existingTodo ? existingTodo.memberChecks || {} : {};
+    
     const completionStatus = div.querySelector('.completion-status');
     if (completed && completionStatus) {
-      const completedBySpan = completionStatus.querySelector('.completed-by');
-      if (completedBySpan) {
-        completedBy = completedBySpan.textContent.replace('Diselesaikan oleh: ', '');
-      }
-      const completionTime = completionStatus.querySelector('.completion-time');
-      if (completionTime) {
-        const timeText = completionTime.textContent.replace('pada ', '');
+      const timeDiv = completionStatus.querySelector('.completion-time');
+      if (timeDiv) {
+        const timeText = timeDiv.textContent.replace('pada ', '');
         completedAt = new Date(timeText).getTime();
+      }
+      // Extract member names from the completion status
+      const memberDiv = completionStatus.querySelector('div[style*="font-size: 0.75rem"]');
+      if (memberDiv) {
+        const memberText = memberDiv.textContent.replace('Members: ', '');
+        completedBy = memberText.split(', ').filter(name => name.trim());
       }
     }
     
@@ -957,6 +965,7 @@ function saveTodos() {
         });
       }
     });
+    
     todos.push({ 
       type: "todo", 
       id, 
@@ -966,7 +975,8 @@ function saveTodos() {
       comments, 
       completed,
       completedBy,
-      completedAt
+      completedAt,
+      memberChecks
     });
   });
   localStorage.setItem("todos", JSON.stringify(todos));
