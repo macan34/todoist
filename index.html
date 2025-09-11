@@ -716,6 +716,24 @@ function saveTodos() {
     const title = div.querySelector("strong").innerText;
     const desc = div.querySelector("span").innerText;
     const user = div.querySelector(".todo-meta").innerText.replace("👤 ", "");
+    const completed = div.classList.contains('completed');
+    
+    // Ambil data completion
+    let completedBy = null;
+    let completedAt = null;
+    const completionStatus = div.querySelector('.completion-status');
+    if (completed && completionStatus) {
+      const completedBySpan = completionStatus.querySelector('.completed-by');
+      if (completedBySpan) {
+        completedBy = completedBySpan.textContent.replace('Diselesaikan oleh: ', '');
+      }
+      const completionTime = completionStatus.querySelector('.completion-time');
+      if (completionTime) {
+        const timeText = completionTime.textContent.replace('pada ', '');
+        completedAt = new Date(timeText).getTime();
+      }
+    }
+    
     const comments = [];
     div.querySelectorAll(".comment").forEach(c => {
       const img = c.querySelector("img");
@@ -739,7 +757,17 @@ function saveTodos() {
         });
       }
     });
-    todos.push({ type: "todo", id, title, desc, user, comments });
+    todos.push({ 
+      type: "todo", 
+      id, 
+      title, 
+      desc, 
+      user, 
+      comments, 
+      completed,
+      completedBy,
+      completedAt
+    });
   });
   localStorage.setItem("todos", JSON.stringify(todos));
 }
