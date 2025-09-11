@@ -160,6 +160,36 @@
     display: none; 
   }
 
+  /* === MEMBER LIST === */
+  .member-list {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .member-list h4 {
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .member-item {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .member-item.mentor {
+    background: #f59e0b;
+  }
+
   /* === TODO ITEMS === */
   .todo-item {
     background: white;
@@ -259,7 +289,13 @@
     cursor: pointer;
   }
 
-  .completion-checkbox.completed {
+  .completion-checkbox.user-checked {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+  }
+
+  .completion-checkbox.all-checked {
     background: #ecfdf5;
     color: #059669;
     border-color: #10b981;
@@ -275,16 +311,67 @@
     font-size: 0.875rem;
   }
 
-  .completion-status .completed-by {
+  .completion-status .completed-title {
     color: #059669;
     font-weight: 600;
+    margin-bottom: 0.5rem;
   }
 
   .completion-status .completion-time {
     color: #6b7280;
     font-size: 0.8rem;
     font-style: italic;
-    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .completion-status .member-checks {
+    font-size: 0.75rem;
+    color: #374151;
+  }
+
+  /* === PARTIAL COMPLETION STATUS === */
+  .partial-completion-status {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .partial-completion-status .progress-title {
+    color: #92400e;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .partial-completion-status .progress-bar {
+    background: #f3f4f6;
+    border-radius: 4px;
+    height: 8px;
+    margin: 0.5rem 0;
+  }
+
+  .partial-completion-status .progress-fill {
+    background: #f59e0b;
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .partial-completion-status .member-list-small {
+    font-size: 0.75rem;
+    color: #374151;
+    margin-top: 0.5rem;
+  }
+
+  .partial-completion-status .checked {
+    color: #059669;
+    font-weight: 500;
+  }
+
+  .partial-completion-status .unchecked {
+    color: #6b7280;
   }
 
   /* === DELETE BUTTON === */
@@ -506,6 +593,14 @@
         <h2 id="roomTitle">🏠 Room</h2>
         <p id="userRole" style="color: #667eea; font-weight: 500;"></p>
         <p style="margin-top: 0.5rem;">Status: <span id="status" class="status offline">Offline</span></p>
+        
+        <!-- Member List -->
+        <div id="memberList" class="member-list">
+          <h4>👥 Anggota Room</h4>
+          <div id="memberContainer">
+            <!-- Members akan muncul di sini -->
+          </div>
+        </div>
       </div>
 
       <div id="todoSection" class="card">
@@ -517,7 +612,7 @@
         </div>
         <div id="memberInfo" class="hidden" style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #bae6fd;">
           <p style="color: #0369a1; margin: 0; font-size: 0.9rem;">
-            💡 <strong>Member:</strong> Anda dapat melihat dan mengomentari tugas, serta menandai tugas sebagai selesai.
+            💡 <strong>Member:</strong> Centang tugas untuk menandai Anda telah menyelesaikannya. Tugas akan selesai jika semua member mencentang.
           </p>
         </div>
         <div id="todoList">
@@ -535,6 +630,7 @@
 <script>
 let peer, conn, connections = [];
 let userName = "", roomId = "", role = "";
+let roomMembers = new Set(); // Track all members in room
 
 window.addEventListener("load", () => {
   const savedSession = localStorage.getItem("session");
@@ -567,8 +663,11 @@ function createRoom() {
 function autoCreateRoom() {
   peer = new Peer(roomId);
   peer.on("open", id => {
+    // Add mentor to room members
+    roomMembers.add(userName);
     initApp("🏠 Room ID: " + id, "🎯 Mentor: " + userName);
     document.getElementById("status").className = "status online";
+    updateMemberList();
 
     let savedTodos = localStorage.getItem("todos");
     if (savedTodos) {
@@ -582,9 +681,28 @@ function autoCreateRoom() {
 
     peer.on("connection", c => {
       connections.push(c);
+      c.on("open", () => {
+        // Send current member list to new member
+        c.send({ type: "memberList", members: Array.from(roomMembers) });
+        // Send all todos to new member
+        c.send({ type: "allTodos", todos: getAllTodos() });
+      });
       c.on("data", data => {
-        if (data.type === "requestData") c.send({ type: "allTodos", todos: getAllTodos() });
-        else handleData(data);
+        if (data.type === "joinRoom") {
+          roomMembers.add(data.userName);
+          updateMemberList();
+          // Broadcast updated member list to all
+          broadcast({ type: "memberList", members: Array.from(roomMembers) });
+        } else if (data.type === "requestData") {
+          c.send({ type: "allTodos", todos: getAllTodos() });
+          c.send({ type: "memberList", members: Array.from(roomMembers) });
+        } else {
+          handleData(data);
+        }
+      });
+      c.on("close", () => {
+        // Remove connection from array when closed
+        connections = connections.filter(conn => conn !== c);
       });
     });
   });
@@ -606,7 +724,8 @@ function autoJoinRoom() {
     conn.on("open", () => {
       initApp("🏠 Room ID: " + roomId, "🤝 Member: " + userName);
       document.getElementById("status").className = "status online";
-      // Member tidak bisa menambah todo, jadi tidak perlu show form
+      // Tell mentor this member joined
+      conn.send({ type: "joinRoom", userName: userName });
       conn.send({ type: "requestData" });
       conn.on("data", handleData);
     });
@@ -619,9 +738,6 @@ function initApp(title, info) {
   document.getElementById("roomTitle").innerText = title;
   document.getElementById("userRole").innerText = info;
   
-  // DEBUG: pastikan role sudah benar
-  console.log("initApp called with role:", role);
-  
   // Pastikan semua form di-hide dulu
   document.getElementById("addTodoForm").classList.add("hidden");
   document.getElementById("memberInfo").classList.add("hidden");
@@ -629,13 +745,23 @@ function initApp(title, info) {
   // Tampilkan form add todo hanya untuk mentor
   if (role === "mentor") {
     document.getElementById("addTodoForm").classList.remove("hidden");
-    console.log("Showing add form for mentor");
   } else if (role === "member") {
     document.getElementById("memberInfo").classList.remove("hidden");
-    console.log("Showing member info for member");
   }
   
   updateEmptyState();
+}
+
+function updateMemberList() {
+  const container = document.getElementById("memberContainer");
+  container.innerHTML = "";
+  
+  roomMembers.forEach(member => {
+    const memberEl = document.createElement("span");
+    memberEl.className = `member-item ${member === userName && role === "mentor" ? "mentor" : ""}`;
+    memberEl.textContent = member + (member === userName && role === "mentor" ? " (Mentor)" : "");
+    container.appendChild(memberEl);
+  });
 }
 
 function addTodo() {
@@ -656,8 +782,9 @@ function addTodo() {
     user: userName, 
     comments: [],
     completed: false,
-    completedBy: null,
-    completedAt: null
+    completedBy: [],
+    completedAt: null,
+    memberChecks: {} // Track which members have checked this todo
   };
   renderTodo(todo);
   saveTodos();
@@ -674,24 +801,68 @@ function renderTodo(todo) {
   div.className = `todo-item ${todo.completed ? 'completed' : ''}`;
   div.id = "todo-" + todo.id;
   
-  // Status completion jika sudah selesai
-  const completionStatus = todo.completed ? `
-    <div class="completion-status">
-      ✅ <span class="completed-by">Diselesaikan oleh: ${escapeHtml(todo.completedBy)}</span>
-      <div class="completion-time">pada ${new Date(todo.completedAt).toLocaleString('id-ID')}</div>
-    </div>
-  ` : '';
+  // Check completion status
+  const memberList = Array.from(roomMembers);
+  const members = memberList.filter(m => role === "mentor" ? m !== userName : true); // Exclude mentor from completion check
+  const checkedMembers = Object.keys(todo.memberChecks || {}).filter(m => todo.memberChecks[m]);
+  const isUserChecked = todo.memberChecks && todo.memberChecks[userName];
+  const allMembersChecked = members.length > 0 && members.every(m => todo.memberChecks && todo.memberChecks[m]);
+  
+  // Status completion
+  let completionStatusHtml = '';
+  if (todo.completed && allMembersChecked) {
+    completionStatusHtml = `
+      <div class="completion-status">
+        <div class="completed-title">✅ Tugas Selesai!</div>
+        <div class="completion-time">Diselesaikan pada ${new Date(todo.completedAt).toLocaleString('id-ID')}</div>
+        <div class="member-checks">Semua member: ${members.join(', ')}</div>
+      </div>
+    `;
+  } else if (checkedMembers.length > 0) {
+    const progress = members.length > 0 ? (checkedMembers.length / members.length) * 100 : 0;
+    completionStatusHtml = `
+      <div class="partial-completion-status">
+        <div class="progress-title">📊 Progress: ${checkedMembers.length}/${members.length} member</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${progress}%"></div>
+        </div>
+        <div class="member-list-small">
+          ${members.map(m => 
+            `<span class="${todo.memberChecks && todo.memberChecks[m] ? 'checked' : 'unchecked'}">${m}${todo.memberChecks && todo.memberChecks[m] ? ' ✓' : ''}</span>`
+          ).join(', ')}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Checkbox status class
+  let checkboxClass = 'completion-checkbox';
+  if (isUserChecked && !allMembersChecked) {
+    checkboxClass += ' user-checked';
+  } else if (allMembersChecked) {
+    checkboxClass += ' all-checked';
+  }
+  
+  // Checkbox text
+  let checkboxText = 'Tandai Selesai';
+  if (isUserChecked && !allMembersChecked) {
+    checkboxText = '⏳ Menunggu yang lain';
+  } else if (allMembersChecked) {
+    checkboxText = '✅ Selesai';
+  }
   
   div.innerHTML = `
     <strong>${escapeHtml(todo.title)}</strong>
     <span>${escapeHtml(todo.desc)}</span>
     <div class="todo-meta">👤 ${escapeHtml(todo.user)}</div>
-    ${completionStatus}
+    ${completionStatusHtml}
     <div class="todo-actions">
-      <button class="completion-checkbox ${todo.completed ? 'completed' : ''}" onclick="toggleCompletion(${todo.id})">
-        <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="event.preventDefault()">
-        <span>${todo.completed ? '✅ Selesai' : 'Tandai Selesai'}</span>
-      </button>
+      ${role === "member" ? `
+        <button class="${checkboxClass}" onclick="toggleMemberCheck(${todo.id})">
+          <input type="checkbox" ${isUserChecked ? 'checked' : ''} onchange="event.preventDefault()">
+          <span>${checkboxText}</span>
+        </button>
+      ` : ''}
       <button class="comment-toggle-btn" onclick="toggleComment(${todo.id})">💬 Komentar</button>
     </div>
     ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})" title="Hapus tugas">🗑️</button>` : ""}
@@ -715,74 +886,107 @@ function renderTodo(todo) {
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
 }
 
-function toggleCompletion(todoId) {
-  const todoDiv = document.getElementById("todo-" + todoId);
-  const checkbox = todoDiv.querySelector('input[type="checkbox"]');
-  const button = todoDiv.querySelector('.completion-checkbox');
+function toggleMemberCheck(todoId) {
+  if (role !== "member") return;
   
-  const isCompleted = !checkbox.checked;
-  
-  // Update UI lokal
-  checkbox.checked = isCompleted;
-  if (isCompleted) {
-    todoDiv.classList.add('completed');
-    button.classList.add('completed');
-    button.querySelector('span').textContent = '✅ Selesai';
-  } else {
-    todoDiv.classList.remove('completed');
-    button.classList.remove('completed');
-    button.querySelector('span').textContent = 'Tandai Selesai';
-  }
-  
-  // Broadcast perubahan
-  const completionData = {
-    type: "toggleCompletion",
+  const checkData = {
+    type: "memberCheck",
     todoId: todoId,
-    completed: isCompleted,
-    completedBy: isCompleted ? userName : null,
-    completedAt: isCompleted ? Date.now() : null
+    userName: userName,
+    checked: true
   };
   
-  broadcast(completionData);
-  handleCompletion(completionData);
+  // Update local state
+  handleMemberCheck(checkData);
+  
+  // Broadcast to mentor and other members
+  broadcast(checkData);
   saveTodos();
 }
 
-function handleCompletion(data) {
+function handleMemberCheck(data) {
   const todoDiv = document.getElementById("todo-" + data.todoId);
   if (!todoDiv) return;
   
-  const checkbox = todoDiv.querySelector('input[type="checkbox"]');
-  const button = todoDiv.querySelector('.completion-checkbox');
+  // Get current todo data from localStorage
+  const todos = JSON.parse(localStorage.getItem("todos") || "[]");
+  const todoIndex = todos.findIndex(t => t.id === data.todoId);
+  if (todoIndex === -1) return;
   
-  // Update UI
-  checkbox.checked = data.completed;
-  if (data.completed) {
-    todoDiv.classList.add('completed');
-    button.classList.add('completed');
-    button.querySelector('span').textContent = '✅ Selesai';
+  // Initialize memberChecks if not exists
+  if (!todos[todoIndex].memberChecks) {
+    todos[todoIndex].memberChecks = {};
+  }
+  
+  // Toggle member check
+  const currentlyChecked = todos[todoIndex].memberChecks[data.userName] || false;
+  todos[todoIndex].memberChecks[data.userName] = !currentlyChecked;
+  
+  // Check if all members have checked
+  const memberList = Array.from(roomMembers);
+  const members = memberList.filter(m => role === "mentor" ? m !== userName : true);
+  const allMembersChecked = members.length > 0 && members.every(m => todos[todoIndex].memberChecks[m]);
+  
+  if (allMembersChecked && !todos[todoIndex].completed) {
+    // Mark as completed
+    todos[todoIndex].completed = true;
+    todos[todoIndex].completedAt = Date.now();
+    todos[todoIndex].completedBy = members;
     
-    // Tambah atau update status completion
-    let statusDiv = todoDiv.querySelector('.completion-status');
-    if (!statusDiv) {
-      statusDiv = document.createElement('div');
-      statusDiv.className = 'completion-status';
-      // Insert setelah todo-meta
-      const metaDiv = todoDiv.querySelector('.todo-meta');
-      metaDiv.insertAdjacentElement('afterend', statusDiv);
+    // Broadcast completion
+    if (role === "mentor") {
+      broadcast({
+        type: "todoCompleted",
+        todoId: data.todoId,
+        completedAt: todos[todoIndex].completedAt,
+        completedBy: members
+      });
     }
-    statusDiv.innerHTML = `
-      ✅ <span class="completed-by">Diselesaikan oleh: ${escapeHtml(data.completedBy)}</span>
-      <div class="completion-time">pada ${new Date(data.completedAt).toLocaleString('id-ID')}</div>
-    `;
-  } else {
-    todoDiv.classList.remove('completed');
-    button.classList.remove('completed');
-    button.querySelector('span').textContent = 'Tandai Selesai';
+  } else if (!allMembersChecked && todos[todoIndex].completed) {
+    // Unmark as completed
+    todos[todoIndex].completed = false;
+    todos[todoIndex].completedAt = null;
+    todos[todoIndex].completedBy = [];
     
-    // Hapus status completion
-    const statusDiv = todoDiv.querySelector('.completion-status');
-    if (statusDiv) statusDiv.remove();
+    // Broadcast un-completion
+    if (role === "mentor") {
+      broadcast({
+        type: "todoUncompleted",
+        todoId: data.todoId
+      });
+    }
+  }
+  
+  // Save to localStorage
+  localStorage.setItem("todos", JSON.stringify(todos));
+  
+  // Re-render the todo item
+  todoDiv.remove();
+  renderTodo(todos[todoIndex]);
+}
+
+function handleTodoCompletion(data) {
+  const todos = JSON.parse(localStorage.getItem("todos") || "[]");
+  const todoIndex = todos.findIndex(t => t.id === data.todoId);
+  if (todoIndex === -1) return;
+  
+  if (data.type === "todoCompleted") {
+    todos[todoIndex].completed = true;
+    todos[todoIndex].completedAt = data.completedAt;
+    todos[todoIndex].completedBy = data.completedBy;
+  } else if (data.type === "todoUncompleted") {
+    todos[todoIndex].completed = false;
+    todos[todoIndex].completedAt = null;
+    todos[todoIndex].completedBy = [];
+  }
+  
+  localStorage.setItem("todos", JSON.stringify(todos));
+  
+  // Re-render the todo
+  const todoDiv = document.getElementById("todo-" + data.todoId);
+  if (todoDiv) {
+    todoDiv.remove();
+    renderTodo(todos[todoIndex]);
   }
 }
 
@@ -899,9 +1103,15 @@ function handleData(data) {
     saveTodos();
     updateEmptyState();
   }
-  if (data.type === "toggleCompletion") {
-    handleCompletion(data);
-    saveTodos();
+  if (data.type === "memberList") {
+    roomMembers = new Set(data.members);
+    updateMemberList();
+  }
+  if (data.type === "memberCheck") {
+    handleMemberCheck(data);
+  }
+  if (data.type === "todoCompleted" || data.type === "todoUncompleted") {
+    handleTodoCompletion(data);
   }
 }
 
@@ -918,28 +1128,17 @@ function saveTodos() {
     const user = div.querySelector(".todo-meta").innerText.replace("👤 ", "");
     const completed = div.classList.contains('completed');
     
-    // Ambil data dari localStorage jika ada untuk preserve member checks
+    // Ambil data dari localStorage untuk preserve data lainnya
     const existingTodos = JSON.parse(localStorage.getItem("todos") || "[]");
     const existingTodo = existingTodos.find(t => t.id === id);
     
-    // Ambil data completion
     let completedBy = [];
     let completedAt = null;
     let memberChecks = existingTodo ? existingTodo.memberChecks || {} : {};
     
-    const completionStatus = div.querySelector('.completion-status');
-    if (completed && completionStatus) {
-      const timeDiv = completionStatus.querySelector('.completion-time');
-      if (timeDiv) {
-        const timeText = timeDiv.textContent.replace('pada ', '');
-        completedAt = new Date(timeText).getTime();
-      }
-      // Extract member names from the completion status
-      const memberDiv = completionStatus.querySelector('div[style*="font-size: 0.75rem"]');
-      if (memberDiv) {
-        const memberText = memberDiv.textContent.replace('Members: ', '');
-        completedBy = memberText.split(', ').filter(name => name.trim());
-      }
+    if (existingTodo) {
+      completedBy = existingTodo.completedBy || [];
+      completedAt = existingTodo.completedAt;
     }
     
     const comments = [];
