@@ -177,12 +177,22 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
+  .todo-item.completed {
+    background: #f0f9ff;
+    border-color: #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  }
+
   .todo-item strong {
     color: #1e293b;
     font-size: 1.1rem;
     font-weight: 600;
     display: block;
     margin-bottom: 0.5rem;
+  }
+
+  .todo-item.completed strong {
+    color: #059669;
   }
 
   .todo-item > span {
@@ -203,6 +213,8 @@
     display: flex;
     gap: 0.5rem;
     margin-top: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
   }
 
   .comment-toggle-btn {
@@ -217,6 +229,62 @@
   .comment-toggle-btn:hover {
     background: #f1f5f9;
     color: #475569;
+  }
+
+  /* === COMPLETION CHECKBOX === */
+  .completion-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    box-shadow: none;
+  }
+
+  .completion-checkbox:hover {
+    background: #f1f5f9;
+    transform: translateY(-1px);
+  }
+
+  .completion-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #10b981;
+    cursor: pointer;
+  }
+
+  .completion-checkbox.completed {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #10b981;
+  }
+
+  /* === COMPLETION STATUS === */
+  .completion-status {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .completion-status .completed-by {
+    color: #059669;
+    font-weight: 600;
+  }
+
+  .completion-status .completion-time {
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-style: italic;
+    margin-top: 0.25rem;
   }
 
   /* === DELETE BUTTON === */
@@ -447,10 +515,15 @@
           <input type="text" id="todoDesc" placeholder="Deskripsi tugas...">
           <button onclick="addTodo()">➕ Tambah Tugas</button>
         </div>
+        <div id="memberInfo" class="hidden" style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #bae6fd;">
+          <p style="color: #0369a1; margin: 0; font-size: 0.9rem;">
+            💡 <strong>Member:</strong> Anda dapat melihat dan mengomentari tugas, serta menandai tugas sebagai selesai.
+          </p>
+        </div>
         <div id="todoList">
           <div class="empty-state">
             <p>Belum ada tugas</p>
-            <small>Tambahkan tugas pertama Anda!</small>
+            <small>Mentor akan menambahkan tugas untuk Anda!</small>
           </div>
         </div>
       </div>
@@ -473,7 +546,10 @@ window.addEventListener("load", () => {
     if (role === "mentor") autoCreateRoom();
     else if (role === "member") autoJoinRoom();
   }
-  loadLocalTodos();
+  // Hanya load todos jika sudah ada session dan role sudah di-set
+  if (role) {
+    loadLocalTodos();
+  }
 });
 
 function saveSession() { localStorage.setItem("session", JSON.stringify({ userName, roomId, role })); }
@@ -498,6 +574,7 @@ function autoCreateRoom() {
     if (savedTodos) {
       if (confirm("Data lama ditemukan. Muat data lama?")) {
         JSON.parse(savedTodos).forEach(todo => renderTodo(todo));
+        updateEmptyState();
       } else {
         localStorage.removeItem("todos");
       }
@@ -529,6 +606,7 @@ function autoJoinRoom() {
     conn.on("open", () => {
       initApp("🏠 Room ID: " + roomId, "🤝 Member: " + userName);
       document.getElementById("status").className = "status online";
+      // Member tidak bisa menambah todo, jadi tidak perlu show form
       conn.send({ type: "requestData" });
       conn.on("data", handleData);
     });
@@ -540,14 +618,47 @@ function initApp(title, info) {
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("roomTitle").innerText = title;
   document.getElementById("userRole").innerText = info;
+  
+  // DEBUG: pastikan role sudah benar
+  console.log("initApp called with role:", role);
+  
+  // Pastikan semua form di-hide dulu
+  document.getElementById("addTodoForm").classList.add("hidden");
+  document.getElementById("memberInfo").classList.add("hidden");
+  
+  // Tampilkan form add todo hanya untuk mentor
+  if (role === "mentor") {
+    document.getElementById("addTodoForm").classList.remove("hidden");
+    console.log("Showing add form for mentor");
+  } else if (role === "member") {
+    document.getElementById("memberInfo").classList.remove("hidden");
+    console.log("Showing member info for member");
+  }
+  
   updateEmptyState();
 }
 
 function addTodo() {
+  // Hanya mentor yang bisa menambah todo
+  if (role !== "mentor") {
+    alert("Hanya mentor yang dapat menambah tugas!");
+    return;
+  }
+  
   const title = document.getElementById("todoTitle").value.trim();
   const desc = document.getElementById("todoDesc").value.trim();
   if (!title) return alert("Judul tidak boleh kosong");
-  const todo = { type: "todo", id: Date.now(), title, desc, user: userName, comments: [] };
+  const todo = { 
+    type: "todo", 
+    id: Date.now(), 
+    title, 
+    desc, 
+    user: userName, 
+    comments: [],
+    completed: false,
+    completedBy: null,
+    completedAt: null
+  };
   renderTodo(todo);
   saveTodos();
   broadcast(todo);
@@ -560,13 +671,27 @@ function renderTodo(todo) {
   if (document.getElementById("todo-" + todo.id)) return;
   
   const div = document.createElement("div");
-  div.className = "todo-item";
+  div.className = `todo-item ${todo.completed ? 'completed' : ''}`;
   div.id = "todo-" + todo.id;
+  
+  // Status completion jika sudah selesai
+  const completionStatus = todo.completed ? `
+    <div class="completion-status">
+      ✅ <span class="completed-by">Diselesaikan oleh: ${escapeHtml(todo.completedBy)}</span>
+      <div class="completion-time">pada ${new Date(todo.completedAt).toLocaleString('id-ID')}</div>
+    </div>
+  ` : '';
+  
   div.innerHTML = `
     <strong>${escapeHtml(todo.title)}</strong>
     <span>${escapeHtml(todo.desc)}</span>
     <div class="todo-meta">👤 ${escapeHtml(todo.user)}</div>
+    ${completionStatus}
     <div class="todo-actions">
+      <button class="completion-checkbox ${todo.completed ? 'completed' : ''}" onclick="toggleCompletion(${todo.id})">
+        <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="event.preventDefault()">
+        <span>${todo.completed ? '✅ Selesai' : 'Tandai Selesai'}</span>
+      </button>
       <button class="comment-toggle-btn" onclick="toggleComment(${todo.id})">💬 Komentar</button>
     </div>
     ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})" title="Hapus tugas">🗑️</button>` : ""}
@@ -588,6 +713,77 @@ function renderTodo(todo) {
 
   // jika todo sudah punya komentar, render komentar dari data
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
+}
+
+function toggleCompletion(todoId) {
+  const todoDiv = document.getElementById("todo-" + todoId);
+  const checkbox = todoDiv.querySelector('input[type="checkbox"]');
+  const button = todoDiv.querySelector('.completion-checkbox');
+  
+  const isCompleted = !checkbox.checked;
+  
+  // Update UI lokal
+  checkbox.checked = isCompleted;
+  if (isCompleted) {
+    todoDiv.classList.add('completed');
+    button.classList.add('completed');
+    button.querySelector('span').textContent = '✅ Selesai';
+  } else {
+    todoDiv.classList.remove('completed');
+    button.classList.remove('completed');
+    button.querySelector('span').textContent = 'Tandai Selesai';
+  }
+  
+  // Broadcast perubahan
+  const completionData = {
+    type: "toggleCompletion",
+    todoId: todoId,
+    completed: isCompleted,
+    completedBy: isCompleted ? userName : null,
+    completedAt: isCompleted ? Date.now() : null
+  };
+  
+  broadcast(completionData);
+  handleCompletion(completionData);
+  saveTodos();
+}
+
+function handleCompletion(data) {
+  const todoDiv = document.getElementById("todo-" + data.todoId);
+  if (!todoDiv) return;
+  
+  const checkbox = todoDiv.querySelector('input[type="checkbox"]');
+  const button = todoDiv.querySelector('.completion-checkbox');
+  
+  // Update UI
+  checkbox.checked = data.completed;
+  if (data.completed) {
+    todoDiv.classList.add('completed');
+    button.classList.add('completed');
+    button.querySelector('span').textContent = '✅ Selesai';
+    
+    // Tambah atau update status completion
+    let statusDiv = todoDiv.querySelector('.completion-status');
+    if (!statusDiv) {
+      statusDiv = document.createElement('div');
+      statusDiv.className = 'completion-status';
+      // Insert setelah todo-meta
+      const metaDiv = todoDiv.querySelector('.todo-meta');
+      metaDiv.insertAdjacentElement('afterend', statusDiv);
+    }
+    statusDiv.innerHTML = `
+      ✅ <span class="completed-by">Diselesaikan oleh: ${escapeHtml(data.completedBy)}</span>
+      <div class="completion-time">pada ${new Date(data.completedAt).toLocaleString('id-ID')}</div>
+    `;
+  } else {
+    todoDiv.classList.remove('completed');
+    button.classList.remove('completed');
+    button.querySelector('span').textContent = 'Tandai Selesai';
+    
+    // Hapus status completion
+    const statusDiv = todoDiv.querySelector('.completion-status');
+    if (statusDiv) statusDiv.remove();
+  }
 }
 
 function toggleComment(todoId) {
@@ -689,153 +885,4 @@ function handleData(data) {
   if (data.type === "todo") {
     renderTodo(data);
     saveTodos();
-  }
-  if (data.type === "comment" || data.type === "photo") {
-    appendComment(data);
-    saveTodos();
-  }
-  if (data.type === "allTodos") {
-    data.todos.forEach(todo => renderTodo(todo));
-    saveTodos();
-  }
-  if (data.type === "deleteTodo") {
-    document.getElementById("todo-" + data.todoId)?.remove();
-    saveTodos();
-    updateEmptyState();
-  }
-}
-
-function getAllTodos() {
-  return JSON.parse(localStorage.getItem("todos") || "[]");
-}
-
-function saveTodos() {
-  const todos = [];
-  document.querySelectorAll(".todo-item").forEach(div => {
-    const id = parseInt(div.id.replace("todo-", ""));
-    const title = div.querySelector("strong").innerText;
-    const desc = div.querySelector("span").innerText;
-    const user = div.querySelector(".todo-meta").innerText.replace("👤 ", "");
-    const completed = div.classList.contains('completed');
-    
-    // Ambil data completion
-    let completedBy = null;
-    let completedAt = null;
-    const completionStatus = div.querySelector('.completion-status');
-    if (completed && completionStatus) {
-      const completedBySpan = completionStatus.querySelector('.completed-by');
-      if (completedBySpan) {
-        completedBy = completedBySpan.textContent.replace('Diselesaikan oleh: ', '');
-      }
-      const completionTime = completionStatus.querySelector('.completion-time');
-      if (completionTime) {
-        const timeText = completionTime.textContent.replace('pada ', '');
-        completedAt = new Date(timeText).getTime();
-      }
-    }
-    
-    const comments = [];
-    div.querySelectorAll(".comment").forEach(c => {
-      const img = c.querySelector("img");
-      const strong = c.querySelector("strong");
-      const username = strong ? strong.textContent.replace(":", "").trim() : "";
-      if (img) {
-        comments.push({
-          type: "photo",
-          todoId: id,
-          user: username,
-          data: img.src
-        });
-      } else {
-        const span = c.querySelector(".comment-text");
-        const text = span ? span.textContent.trim() : "";
-        comments.push({
-          type: "comment",
-          todoId: id,
-          user: username,
-          text
-        });
-      }
-    });
-    todos.push({ 
-      type: "todo", 
-      id, 
-      title, 
-      desc, 
-      user, 
-      comments, 
-      completed,
-      completedBy,
-      completedAt
-    });
-  });
-  localStorage.setItem("todos", JSON.stringify(todos));
-}
-
-function loadLocalTodos() {
-  const saved = localStorage.getItem("todos");
-  if (saved) {
-    JSON.parse(saved).forEach(todo => renderTodo(todo));
-  }
-  updateEmptyState();
-}
-
-function deleteTodo(todoId) {
-  if (!confirm("Yakin hapus tugas ini?")) return;
-  document.getElementById("todo-" + todoId)?.remove();
-  saveTodos();
-  broadcast({ type: "deleteTodo", todoId });
-  updateEmptyState();
-}
-
-function updateEmptyState() {
-  const todoList = document.getElementById("todoList");
-  const todos = todoList.querySelectorAll(".todo-item");
-  const emptyState = todoList.querySelector(".empty-state");
   
-  if (todos.length === 0) {
-    if (!emptyState) {
-      const emptyDiv = document.createElement("div");
-      emptyDiv.className = "empty-state";
-      if (role === "mentor") {
-        emptyDiv.innerHTML = `
-          <p>Belum ada tugas</p>
-          <small>Tambahkan tugas pertama Anda!</small>
-        `;
-      } else {
-        emptyDiv.innerHTML = `
-          <p>Belum ada tugas</p>
-          <small>Mentor akan menambahkan tugas untuk Anda!</small>
-        `;
-      }
-      todoList.appendChild(emptyDiv);
-    }
-  } else {
-    if (emptyState) {
-      emptyState.remove();
-    }
-  }
-}
-
-function logout() {
-  clearSession();
-  localStorage.removeItem("todos");
-  location.reload();
-}
-
-function broadcast(msg) {
-  connections.forEach(c => c.send(msg));
-  if (conn) conn.send(msg);
-}
-
-function escapeHtml (str) {
-  if (!str && str !== "") return "";
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-</script>
-</body>
-</html>
