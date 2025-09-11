@@ -1,184 +1,164 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Todopro</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Todopro (fixed)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    margin: 0;
-    padding: 0;
-  }
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: #4cafef;
+      color: white;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 10px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    input, button {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 5px 0;
+    }
+    button {
+      background: #4cafef;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover { background: #379ed7; }
+    .hidden { display: none; }
 
-  header {
-    text-align: center;
-    padding: 20px;
-    background: #4cafef;
-    color: white;
-  }
+    /* === STYLING TODO ITEM === */
+    .todo-item {
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+      position: relative;
+    }
+    .todo-item strong { font-size: 1.1rem; }
+    .todo-meta { font-size: 0.8rem; color: #666; margin-top: 4px; }
 
-  .container {
-    max-width: 600px;
-    margin: 20px auto;
-    padding: 10px;
-  }
+    /* === TOMBOL HAPUS TUGAS (TEMPAT SAMPAH) === */
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ff4d4d;
+      font-size: 20px;
+      cursor: pointer;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      transition: color 0.2s ease;
+    }
+    .delete-btn:hover { color: #cc0000; }
 
-  .card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    padding: 15px;
-    margin-bottom: 15px;
-  }
+    /* === KOMENTAR BOX === */
+    .comment-box {
+      background: #f9f9f9;
+      border-radius: 10px;
+      margin-top: 10px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      overflow: hidden;
+    }
 
-  input, button {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin: 5px 0;
-  }
+    /* comment element uses flex so text and button align nicely */
+    .comment {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: 6px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
 
-  button {
-    background: #4cafef;
-    color: white;
-    cursor: pointer;
-    border: none;
-  }
+    .comment .left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      word-break: break-word;
+    }
 
-  button:hover {
-    background: #379ed7;
-  }
+    .comment strong { margin-right: 4px; }
 
-  .hidden { display: none; }
+    /* === MEDIA DALAM KOMENTAR === */
+    .comment img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin-top: 8px;
+      display: block;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .comment iframe, .comment video {
+      width: 100%;
+      max-width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      border-radius: 8px;
+      margin-top: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
 
-  /* === STYLING TODO ITEM === */
-  .todo-item {
-    background: #ffffff;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 12px;
-    margin: 10px 0;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-    position: relative;
-  }
+    /* === TOMBOL HAPUS KOMENTAR === */
+    .delete-comment-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #ff4d4d;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .delete-comment-btn:hover { background: rgba(255,77,77,0.08); color: #cc0000; }
 
-  .todo-item strong { font-size: 1.1rem; }
+    /* === PREVIEW FOTO === */
+    .preview-box { margin-top: 8px; text-align: center; }
+    .preview-box img {
+      max-width: 100%;
+      max-height: 150px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
 
-  .todo-meta {
-    font-size: 0.8rem;
-    color: #666;
-    margin-top: 4px;
-  }
-
-  /* === TOMBOL HAPUS TUGAS (GANTI JADI TEMPAT SAMPAH) === */
-  .delete-btn {
-    background: none;
-    border: none;
-    color: #ff4d4d;
-    font-size: 20px;
-    cursor: pointer;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    transition: color 0.2s ease;
-  }
-
-  .delete-btn:hover {
-    color: #cc0000;
-  }
-
-  /* === KOMENTAR BOX === */
-  .comment-box {
-    background: #f9f9f9;
-    border-radius: 10px;
-    margin-top: 10px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    overflow: hidden;
-  }
-
-  .comment {
-    position: relative;
-    background: #fff;
-    border-radius: 8px;
-    padding: 6px 35px 6px 10px; /* ruang kanan buat tombol hapus */
-    margin: 5px 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  }
-
-  /* === MEDIA DALAM KOMENTAR === */
-  .comment img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin-top: 8px;
-    display: block;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  }
-
-  .comment iframe,
-  .comment video {
-    width: 100%;
-    max-width: 100%;
-    aspect-ratio: 16 / 9;
-    display: block;
-    border-radius: 8px;
-    margin-top: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  }
-
-  /* === TOMBOL HAPUS KOMENTAR === */
-  .delete-comment-btn {
-    position: absolute;
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    font-size: 16px;
-    color: #ff4d4d;
-    cursor: pointer;
-    transition: color 0.2s ease;
-  }
-
-  .delete-comment-btn:hover {
-    color: #cc0000;
-  }
-
-  /* === PREVIEW FOTO === */
-  .preview-box {
-    margin-top: 8px;
-    text-align: center;
-  }
-
-  .preview-box img {
-    max-width: 100%;
-    max-height: 150px;
-    border-radius: 10px;
-    border: 2px solid #ddd;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  }
-
-  /* === RESPONSIVE === */
-  @media (max-width: 600px) {
-    .todo-item { font-size: 0.9rem; }
-    .delete-btn { font-size: 18px; }
-  }
-</style>
-
+    @media (max-width: 600px) {
+      .todo-item { font-size: 0.9rem; }
+      .delete-btn { font-size: 18px; }
+      .comment { padding: 6px 8px; }
+    }
+  </style>
 </head>
 
 <body>
-  <header>
-    <h1>Todo Kolaborasi</h1>
-  </header>
+  <header><h1>Todo Kolaborasi</h1></header>
 
   <div class="container">
-    <!-- Login Section -->
     <div id="authSection" class="card">
       <h2>Masuk</h2>
       <input type="text" id="userName" placeholder="Nama Anda">
@@ -189,7 +169,6 @@
       </div>
     </div>
 
-    <!-- Main App -->
     <div id="app" class="hidden">
       <div class="card">
         <h2 id="roomTitle">Room</h2>
@@ -228,9 +207,7 @@ window.addEventListener("load", () => {
   loadLocalTodos();
 });
 
-function saveSession() {
-  localStorage.setItem("session", JSON.stringify({ userName, roomId, role }));
-}
+function saveSession() { localStorage.setItem("session", JSON.stringify({ userName, roomId, role })); }
 function clearSession() { localStorage.removeItem("session"); }
 
 function createRoom() {
@@ -261,9 +238,8 @@ function autoCreateRoom() {
     peer.on("connection", c => {
       connections.push(c);
       c.on("data", data => {
-        if (data.type === "requestData") {
-          c.send({ type: "allTodos", todos: getAllTodos() });
-        } else handleData(data);
+        if (data.type === "requestData") c.send({ type: "allTodos", todos: getAllTodos() });
+        else handleData(data);
       });
     });
   });
@@ -316,9 +292,9 @@ function renderTodo(todo) {
   div.className = "todo-item";
   div.id = "todo-" + todo.id;
   div.innerHTML = `
-    <strong>${todo.title}</strong><br>
-    <span>${todo.desc}</span>
-    <div class="todo-meta">oleh ${todo.user}</div>
+    <strong>${escapeHtml(todo.title)}</strong><br>
+    <span>${escapeHtml(todo.desc)}</span>
+    <div class="todo-meta">oleh ${escapeHtml(todo.user)}</div>
     <button onclick="toggleComment(${todo.id})">💬 Komentar</button>
     ${role === "mentor" ? `<button class="delete-btn" onclick="deleteTodo(${todo.id})">🗑️</button>` : ""}
     <div class="comment-box hidden" id="commentBox-${todo.id}">
@@ -330,6 +306,8 @@ function renderTodo(todo) {
       <button onclick="sendComment(${todo.id})">Kirim</button>
     </div>`;
   document.getElementById("todoList").appendChild(div);
+
+  // jika todo sudah punya komentar, render komentar dari data
   if (todo.comments) todo.comments.forEach(c => appendComment(c, false));
 }
 
@@ -358,6 +336,7 @@ function sendComment(todoId) {
   const text = document.getElementById("commentInput-" + todoId).value.trim();
   const file = document.getElementById("photoInput-" + todoId).files[0];
   if (!text && !file) return;
+
   if (text) {
     const msg = { type: "comment", todoId, text, user: userName };
     appendComment(msg);
@@ -365,6 +344,7 @@ function sendComment(todoId) {
     broadcast(msg);
     document.getElementById("commentInput-" + todoId).value = "";
   }
+
   if (file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -380,34 +360,102 @@ function sendComment(todoId) {
   }
 }
 
+/* =========================
+   appendComment (fixed)
+   - buat elemen DOM terpisah (strong + span/img)
+   - jangan gunakan innerHTML sehingga tombol tidak tersimpan ke teks
+   ========================= */
 function appendComment(msg, save = true) {
   const list = document.querySelector(`#todo-${msg.todoId} .comment-list`);
   if (!list) return;
+
+  // buat container komentar
   const div = document.createElement("div");
   div.className = "comment";
-  if (msg.type === "comment") div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-  else if (msg.type === "photo") div.innerHTML = `<strong>${msg.user}:</strong><br><img src="${msg.data}">`;
+
+  // bagian kiri berisi username + teks (atau image)
+  const left = document.createElement("div");
+  left.className = "left";
+
+  const strongEl = document.createElement("strong");
+  strongEl.textContent = msg.user + ":";
+
+  left.appendChild(strongEl);
+
+  if (msg.type === "comment") {
+    const span = document.createElement("span");
+    span.className = "comment-text";
+    span.textContent = " " + (msg.text || "");
+    left.appendChild(span);
+  } else if (msg.type === "photo") {
+    // jika foto, tampilkan di bawah teks username
+    const img = document.createElement("img");
+    img.src = msg.data;
+    img.alt = "photo";
+    img.style.maxWidth = "100%";
+    // buat wrapper vertical: username di bar satu, gambar di bawah
+    const wrapper = document.createElement("div");
+    wrapper.style.width = "100%";
+    const topRow = document.createElement("div");
+    topRow.appendChild(strongEl.cloneNode(true));
+    wrapper.appendChild(topRow);
+    wrapper.appendChild(img);
+    // replace left with wrapper and skip further left append
+    left.innerHTML = "";
+    left.appendChild(wrapper);
+  }
+
+  div.appendChild(left);
+
+  // tombol hapus komentar (hanya mentor)
   if (role === "mentor") {
     const del = document.createElement("button");
-    del.innerText = "❌";
     del.className = "delete-comment-btn";
-    del.onclick = () => { div.remove(); saveTodos(); };
+    del.title = "Hapus komentar";
+    del.innerHTML = "✖";
+    del.onclick = () => {
+      div.remove();
+      saveTodos();
+      // (optional) broadcast deletion if you want sync across members
+    };
     div.appendChild(del);
   }
+
   list.appendChild(div);
+
   if (save) saveTodos();
 }
 
+/* handle incoming data */
 function handleData(data) {
-  if (data.type === "todo") renderTodo(data);
-  if (data.type === "comment" || data.type === "photo") appendComment(data);
-  if (data.type === "allTodos") data.todos.forEach(todo => renderTodo(todo));
+  if (data.type === "todo") {
+    renderTodo(data);
+    saveTodos();
+  }
+  if (data.type === "comment" || data.type === "photo") {
+    appendComment(data);
+    saveTodos();
+  }
+  if (data.type === "allTodos") {
+    data.todos.forEach(todo => renderTodo(todo));
+    saveTodos();
+  }
+  if (data.type === "deleteTodo") {
+    document.getElementById("todo-" + data.todoId)?.remove();
+    saveTodos();
+  }
 }
 
+/* Ambil semua todo dari localStorage */
 function getAllTodos() {
   return JSON.parse(localStorage.getItem("todos") || "[]");
 }
 
+/* =========================
+   saveTodos (fixed)
+   - ambil teks komentar dari .comment-text (bukan innerText utuh)
+   - simpan komentar tanpa ikon tombol
+   ========================= */
 function saveTodos() {
   const todos = [];
   document.querySelectorAll(".todo-item").forEach(div => {
@@ -418,8 +466,25 @@ function saveTodos() {
     const comments = [];
     div.querySelectorAll(".comment").forEach(c => {
       const img = c.querySelector("img");
-      if (img) comments.push({ type: "photo", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), data: img.src });
-      else comments.push({ type: "comment", todoId: id, user: c.querySelector("strong").innerText.replace(":", ""), text: c.innerText.split(": ")[1] || "" });
+      const strong = c.querySelector("strong");
+      const username = strong ? strong.textContent.replace(":", "").trim() : "";
+      if (img) {
+        comments.push({
+          type: "photo",
+          todoId: id,
+          user: username,
+          data: img.src
+        });
+      } else {
+        const span = c.querySelector(".comment-text");
+        const text = span ? span.textContent.trim() : "";
+        comments.push({
+          type: "comment",
+          todoId: id,
+          user: username,
+          text
+        });
+      }
     });
     todos.push({ type: "todo", id, title, desc, user, comments });
   });
@@ -428,7 +493,16 @@ function saveTodos() {
 
 function loadLocalTodos() {
   const saved = localStorage.getItem("todos");
-  if (saved) JSON.parse(saved).forEach(todo => renderTodo(todo));
+  if (saved) {
+    JSON.parse(saved).forEach(todo => renderTodo(todo));
+  }
+}
+
+function deleteTodo(todoId) {
+  if (!confirm("Yakin hapus tugas ini?")) return;
+  document.getElementById("todo-" + todoId)?.remove();
+  saveTodos();
+  broadcast({ type: "deleteTodo", todoId });
 }
 
 function logout() {
@@ -440,6 +514,16 @@ function logout() {
 function broadcast(msg) {
   connections.forEach(c => c.send(msg));
   if (conn) conn.send(msg);
+}
+
+/* small helper to avoid XSS if user enters markup in title/desc */
+function escapeHtml (str) {
+  if (!str && str !== "") return "";
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 </script>
 </body>
