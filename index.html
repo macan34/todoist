@@ -767,10 +767,17 @@ function updateEmptyState() {
     if (!emptyState) {
       const emptyDiv = document.createElement("div");
       emptyDiv.className = "empty-state";
-      emptyDiv.innerHTML = `
-        <p>Belum ada tugas</p>
-        <small>Tambahkan tugas pertama Anda!</small>
-      `;
+      if (role === "mentor") {
+        emptyDiv.innerHTML = `
+          <p>Belum ada tugas</p>
+          <small>Tambahkan tugas pertama Anda!</small>
+        `;
+      } else {
+        emptyDiv.innerHTML = `
+          <p>Belum ada tugas</p>
+          <small>Mentor akan menambahkan tugas untuk Anda!</small>
+        `;
+      }
       todoList.appendChild(emptyDiv);
     }
   } else {
