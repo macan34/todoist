@@ -490,7 +490,6 @@ function autoCreateRoom() {
   peer.on("open", id => {
     initApp("🏠 Room ID: " + id, "🎯 Mentor: " + userName);
     document.getElementById("status").className = "status online";
-    document.getElementById("addTodoForm").classList.remove("hidden");
 
     let savedTodos = localStorage.getItem("todos");
     if (savedTodos) {
